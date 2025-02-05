@@ -6,9 +6,9 @@ client_script "@quantum-base/components/cl_error.lua"
 client_script "@quantum-pwnzor/client/check.lua"
 server_script "@oxmysql/lib/MySQL.lua"
 
-description 'ARP Inventory'
-name 'ARP: quantum-inventory'
-author 'Cool People Team (Mainly Alzar)'
+description 'Inventory'
+name 'quantum-inventory'
+author 'Cool People Team (Mainly Artmines)'
 version 'v1.0.0'
 url 'https://authenticrp.com'
 
