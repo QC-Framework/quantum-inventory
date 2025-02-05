@@ -302,7 +302,7 @@ _itemsSource["french_bakery"] = {
 		durability = (60 * 60 * 24 * 5),
 		energyModifier = {
 			modifier = 1.15,
-			duration = 15, -- not seconds?
+			duration = 6, -- not seconds?
 			cooldown = 60, -- seconds
 			skipScreenEffects = true,
 		},

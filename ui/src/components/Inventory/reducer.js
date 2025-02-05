@@ -1,215 +1,193 @@
 export const initialState = {
-	player:
-		process.env.NODE_ENV == 'production'
-			? {
-					loaded: false,
-					size: 0,
-					invType: 1,
-					name: 'Player',
-					inventory: [],
-					disabled: {},
-					owner: 0,
-					capacity: 100,
-					isWeaponEligble: false,
-			  }
-			: {
-					size: 40,
-					invType: 1,
-					name: 'Player Storage',
-					isWeaponEligble: true,
-					capacity: 100,
-					disabled: Object({
-						2: true,
-					}),
-					loaded: true,
-					inventory: [
-						{
-							Name: 'WEAPON_ADVANCEDRIFLE',
-							Slot: 1,
-							Count: 1,
-							CreateDate: Date.now() / 1000,
-							MetaData: {
-								SerialNumber: '123-456',
-							},
-						},
-						{
-							Name: 'WEAPON_ADVANCEDRIFLE',
-							Slot: 2,
-							Count: 1,
-							CreateDate: 1625461797,
-							MetaData: {
-								SerialNumber: '123-456',
-							},
-						},
-						{
-							Name: 'WEAPON_ADVANCEDRIFLE',
-							Slot: 4,
-							Count: 1,
-							CreateDate: Date.now() / 1000 - 80000,
-							MetaData: {
-								SerialNumber: '123-456',
-							},
-						},
-						{
-							Name: 'WEAPON_ADVANCEDRIFLE',
-							Slot: 5,
-							Count: 1,
-							CreateDate: 1225441797,
-							MetaData: {
-								SerialNumber: '123-456',
-							},
-						},
-						{
-							Name: 'bread',
-							Slot: 8,
-							Count: 10,
-							CreateDate: 1225441797,
-						},
-						{
-							Name: 'water',
-							Slot: 9,
-							Count: 10,
-							CreateDate: 1225441797,
-						},
-					],
-					owner: '12214124',
-			  },
-	secondary:
-		process.env.NODE_ENV == 'production'
-			? {
-					loaded: false,
-					size: 0,
-					name: 'Dropzone',
-					invType: 2,
-					inventory: [],
-					disabled: {},
-					owner: 0,
-					capacity: 100,
-			  }
-			: {
-					size: 120,
-					name: 'Shop Management',
-					invType: 11,
-					capacity: 10000,
-					disabled: Object(),
-					shop: false,
-					playerShop: true,
-					modifyShop: true,
-					loaded: true,
-					action: {
-						icon: 'dollar',
-						text: 'Add To Shop',
-						event: 'Test:Event:Thing',
-					},
-					inventory: [
-						{
-							Name: 'water2',
-							Slot: 1,
-							Count: 10,
-							CreateDate: 1225441797,
-						},
-						{
-							Name: 'water',
-							Slot: 2,
-							Count: 10,
-							Price: 25,
-							CreateDate: 1225441797,
-						},
-						{
-							Name: 'bread',
-							Slot: 3,
-							Count: 10,
-							Price: 25,
-							CreateDate: 1225441797,
-						},
-						{
-							Name: 'WEAPON_ADVANCEDRIFLE',
-							Slot: 4,
-							Count: 1,
-							CreateDate: 1225441797,
-						},
-					],
-					owner: '346346346',
-			  },
-	showSecondary: process.env.NODE_ENV != 'production',
+	player: {
+		loaded: false,
+		size: 0,
+		invType: 1,
+		name: 'Player',
+		inventory: [],
+		disabled: {},
+		owner: 0,
+		capacity: 100,
+		isWeaponEligble: false,
+	},
+	equipment: {
+		inventory: [],
+	},
+	secondary: {
+		loaded: false,
+		size: 0,
+		name: 'Dropzone',
+		invType: 2,
+		inventory: [],
+		disabled: {},
+		owner: 0,
+		capacity: 100,
+	},
+	showSecondary: false,
 	hover: false,
 	hoverOrigin: null,
 	contextItem: null,
 	splitItem: null,
 	inUse: false,
-	items:
-		process.env.NODE_ENV == 'production'
-			? {}
-			: {
-					bread: {
-						name: 'bread',
-						label: 'Advanced Electronics Parts',
-						price: 0,
-						isUsable: true,
-						isRemoved: true,
-						isStackable: 100,
-						type: 1,
-						rarity: 1,
-						metalic: false,
-						weight: 1,
-					},
-					water: {
-						name: 'water',
-						label: 'Water',
-						price: 0,
-						isUsable: true,
-						isRemoved: true,
-						isStackable: 10,
-						type: 1,
-						rarity: 2,
-						metalic: false,
-						weight: 1,
-					},
-					WEAPON_ADVANCEDRIFLE: {
-						name: 'WEAPON_ADVANCEDRIFLE',
-						label: 'Advanced Rifle',
-						requiresLicense: true,
-						price: 15000,
-						isUsable: true,
-						isRemoved: false,
-						isStackable: false,
-						type: 2,
-						rarity: 3,
-						metalic: false,
-						weight: 1,
-						durability: 86400,
-					},
-					schematic_water: {
-						name: 'schematic_water',
-						label: 'Schematic: Water',
-						price: 0,
-						isUsable: true,
-						isRemoved: false,
-						isStackable: false,
-						type: 2,
-						rarity: 3,
-						metalic: false,
-						weight: 1,
-						durability: 86400,
-						schematic: 'water',
-					},
-					schematic_bread: {
-						name: 'schematic_bread',
-						label: 'Schematic: Bread',
-						price: 0,
-						isUsable: true,
-						isRemoved: false,
-						isStackable: false,
-						type: 2,
-						rarity: 3,
-						metalic: false,
-						weight: 1,
-						durability: 86400,
-						schematic: 'bread',
-					},
-			  },
-	itemsLoaded: process.env.NODE_ENV != 'production',
+	items: {},
+	itemsLoaded: false,
 	staticTooltip: false,
+
+	// player: {
+	// 	size: 40,
+	// 	invType: 1,
+	// 	name: 'Player Storage',
+	// 	isWeaponEligble: true,
+	// 	capacity: 100,
+	// 	disabled: Object({
+	// 		2: true,
+	// 	}),
+	// 	loaded: true,
+	// 	inventory: [
+	// 		{
+	// 			Name: 'WEAPON_ADVANCEDRIFLE',
+	// 			Slot: 1,
+	// 			Count: 1,
+	// 			CreateDate: Date.now() / 1000,
+	// 			MetaData: {
+	// 				SerialNumber: '123-456',
+	// 			},
+	// 		},
+	// 		{
+	// 			Name: 'WEAPON_ADVANCEDRIFLE',
+	// 			Slot: 2,
+	// 			Count: 1,
+	// 			CreateDate: 1625461797,
+	// 			MetaData: {
+	// 				SerialNumber: '123-456',
+	// 			},
+	// 		},
+	// 		{
+	// 			Name: 'WEAPON_ADVANCEDRIFLE',
+	// 			Slot: 3,
+	// 			Count: 1,
+	// 			CreateDate: Date.now() / 1000 - 80000,
+	// 			MetaData: {
+	// 				SerialNumber: '123-456',
+	// 			},
+	// 		},
+	// 		{
+	// 			Name: 'WEAPON_ADVANCEDRIFLE',
+	// 			Slot: 4,
+	// 			Count: 1,
+	// 			CreateDate: 1225441797,
+	// 			MetaData: {
+	// 				SerialNumber: '123-456',
+	// 			},
+	// 		},
+	// 		{
+	// 			Name: 'bread',
+	// 			Slot: 5,
+	// 			Count: 10,
+	// 			CreateDate: 1225441797,
+	// 		},
+	// 		{
+	// 			Name: 'water',
+	// 			Slot: 6,
+	// 			Count: 10,
+	// 			CreateDate: 1225441797,
+	// 		},
+	// 	],
+	// 	owner: '12214124',
+	// },
+	// equipment: {
+	// 	inventory: [],
+	// },
+	// secondary: {
+	// 	size: 1,
+	// 	name: 'Gallery Gem Table',
+	// 	invType: 11,
+	// 	capacity: 100,
+	// 	disabled: Object(),
+	// 	shop: true,
+	// 	loaded: true,
+	// 	action: {
+	// 		icon: 'gem',
+	// 		text: 'Appraise',
+	// 		event: 'Test:Event:Thing',
+	// 	},
+	// 	inventory: [
+	// 		{
+	// 			Name: 'water',
+	// 			Slot: 1,
+	// 			Count: 10,
+	// 			CreateDate: 1225441797,
+	// 		},
+	// 		{
+	// 			Name: 'water',
+	// 			Slot: 2,
+	// 			Count: 10,
+	// 			Price: 25,
+	// 			CreateDate: 1225441797,
+	// 		},
+	// 		{
+	// 			Name: 'bread',
+	// 			Slot: 3,
+	// 			Count: 10,
+	// 			Price: 25,
+	// 			CreateDate: 1225441797,
+	// 		},
+	// 		{
+	// 			Name: 'WEAPON_ADVANCEDRIFLE',
+	// 			Slot: 4,
+	// 			Count: 1,
+	// 			CreateDate: 1225441797,
+	// 		},
+	// 	],
+	// 	owner: '346346346',
+	// },
+	// showSecondary: true,
+	// hover: false,
+	// hoverOrigin: null,
+	// contextItem: null,
+	// splitItem: null,
+	// inUse: false,
+	// items: {
+	// 	bread: {
+	// 		name: 'bread',
+	// 		label: 'Bread',
+	// 		price: 0,
+	// 		isUsable: true,
+	// 		isRemoved: true,
+	// 		isStackable: 100,
+	// 		type: 1,
+	// 		rarity: 1,
+	// 		metalic: false,
+	// 		weight: 1,
+	// 	},
+	// 	water: {
+	// 		name: 'water',
+	// 		label: 'Water',
+	// 		price: 0,
+	// 		isUsable: true,
+	// 		isRemoved: true,
+	// 		isStackable: 10,
+	// 		type: 1,
+	// 		rarity: 2,
+	// 		metalic: false,
+	// 		weight: 1,
+	// 	},
+	// 	WEAPON_ADVANCEDRIFLE: {
+	// 		name: 'WEAPON_ADVANCEDRIFLE',
+	// 		label: 'Advanced Rifle',
+	// 		requiresLicense: true,
+	// 		price: 15000,
+	// 		isUsable: true,
+	// 		isRemoved: false,
+	// 		isStackable: false,
+	// 		type: 2,
+	// 		rarity: 3,
+	// 		metalic: false,
+	// 		weight: 1,
+	// 		durability: 86400,
+	// 	},
+	// },
+	// itemsLoaded: true,
 
 	// staticTooltip: {
 	// 	Name: 'WEAPON_ADVANCEDRIFLE',
@@ -235,12 +213,6 @@ const appReducer = (state = initialState, action) => {
 				items: Object(),
 				itemsLoaded: false,
 			};
-		case 'SET_ITEMS': {
-			return {
-				...state,
-				items: action.payload.items,
-			};
-		}
 		case 'ADD_ITEM': {
 			return {
 				...state,
@@ -287,26 +259,9 @@ const appReducer = (state = initialState, action) => {
 			return {
 				...state,
 				player: {
-					...state.player,
 					...action.payload,
 					invType: 1,
 					disabled: state.player.disabled,
-				},
-			};
-		}
-		case 'SET_INVENTORIES': {
-			return {
-				...state,
-				player: {
-					...state.player,
-					...action.payload.player,
-					invType: 1,
-					disabled: state.player.disabled,
-				},
-				secondary: {
-					...state.secondary,
-					...action.payload.secondary,
-					disabled: state.secondary.disabled,
 				},
 			};
 		}
@@ -732,7 +687,10 @@ const appReducer = (state = initialState, action) => {
 				}),
 			];
 
-			if (calcWeight(sInv, state.items) <= state.secondary.capacity) {
+			if (
+				calcWeight(pInv, state.items) <= state.player.capacity &&
+				calcWeight(sInv, state.items) <= state.secondary.capacity
+			) {
 				return {
 					...state,
 					player: {
@@ -789,7 +747,10 @@ const appReducer = (state = initialState, action) => {
 							},
 					  ];
 
-			if (calcWeight(sInv, state.items) <= state.secondary.capacity) {
+			if (
+				calcWeight(pInv, state.items) <= state.player.capacity &&
+				calcWeight(sInv, state.items) <= state.secondary.capacity
+			) {
 				return {
 					...state,
 					player: {
@@ -835,7 +796,10 @@ const appReducer = (state = initialState, action) => {
 					})),
 			];
 
-			if (calcWeight(sInv, state.items) <= state.secondary.capacity) {
+			if (
+				calcWeight(pInv, state.items) <= state.player.capacity &&
+				calcWeight(sInv, state.items) <= state.secondary.capacity
+			) {
 				return {
 					...state,
 					player: {
@@ -876,7 +840,10 @@ const appReducer = (state = initialState, action) => {
 				,
 			];
 
-			if (calcWeight(sInv, state.items) <= state.secondary.capacity) {
+			if (
+				calcWeight(pInv, state.items) <= state.player.capacity &&
+				calcWeight(sInv, state.items) <= state.secondary.capacity
+			) {
 				return {
 					...state,
 					player: {
@@ -919,7 +886,11 @@ const appReducer = (state = initialState, action) => {
 				  ]
 				: state.secondary.inventory;
 
-			if (calcWeight(pInv, state.items) <= state.player.capacity) {
+			if (
+				calcWeight(pInv, state.items) <= state.player.capacity &&
+				(calcWeight(sInv, state.items) <= state.secondary.capacity ||
+					action.payload.origin.shop)
+			) {
 				return {
 					...state,
 					player: {
@@ -979,7 +950,11 @@ const appReducer = (state = initialState, action) => {
 						}),
 				  ]
 				: state.secondary.inventory;
-			if (calcWeight(pInv, state.items) <= state.player.capacity) {
+			if (
+				calcWeight(pInv, state.items) <= state.player.capacity &&
+				(calcWeight(sInv, state.items) <= state.secondary.capacity ||
+					action.payload.origin.shop)
+			) {
 				return {
 					...state,
 					player: {
@@ -1029,7 +1004,11 @@ const appReducer = (state = initialState, action) => {
 				  ]
 				: state.secondary.inventory;
 
-			if (calcWeight(pInv, state.items) <= state.player.capacity) {
+			if (
+				calcWeight(pInv, state.items) <= state.player.capacity &&
+				(calcWeight(sInv, state.items) <= state.secondary.capacity ||
+					action.payload.origin.shop)
+			) {
 				return {
 					...state,
 					player: {
@@ -1079,7 +1058,11 @@ const appReducer = (state = initialState, action) => {
 				  ]
 				: state.secondary.inventory;
 
-			if (calcWeight(pInv, state.items) <= state.player.capacity) {
+			if (
+				calcWeight(pInv, state.items) <= state.player.capacity &&
+				(calcWeight(sInv, state.items) <= state.secondary.capacity ||
+					action.payload.origin.shop)
+			) {
 				return {
 					...state,
 					player: {
@@ -1111,18 +1094,6 @@ const appReducer = (state = initialState, action) => {
 					...state.player,
 					disabled,
 					inventory: player,
-				},
-			};
-		case 'UPDATE_BOTH_INVS':
-			return {
-				...state,
-				player: {
-					...state.player,
-					inventory: action.payload.player,
-				},
-				secondary: {
-					...state.secondary,
-					inventory: action.payload.secondary,
 				},
 			};
 		case 'APP_HIDE':

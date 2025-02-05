@@ -1,5 +1,5 @@
 export const initialState = {
-	hidden: process.env.NODE_ENV == 'production',
+	hidden: true,
 	showHotbar: false,
 	showing: null,
 	mode: 'inventory',

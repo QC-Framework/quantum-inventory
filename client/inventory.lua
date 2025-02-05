@@ -2,27 +2,14 @@ _cachedInventory = nil
 SecondInventory = {}
 
 _inUse = false
-_reloading = false
+_disabled = false
 local _openCd = false
-local _timedCd = false
 local _hkCd = false
 local _container = nil
 local trunkOpen = false
 
-local _itemDefs = nil
-local _schems = {}
-
 function dropAnim(drop)
 	if LocalPlayer.state.doingAction then
-		return
-	end
-	if LocalPlayer.state.isK9Ped then
-		loadAnimDict("creatures@rottweiler@move")
-		if drop then
-			TaskPlayAnim(PlayerPedId(), "creatures@rottweiler@move", "fetch_pickup", 5.0, 1.0, 1.0, 48, 0.0, 0, 0, 0)
-		else
-			TaskPlayAnim(PlayerPedId(), "creatures@rottweiler@move", "fetch_drop", 5.0, 1.0, 1.0, 48, 0.0, 0, 0, 0)
-		end
 		return
 	end
 	if drop then
@@ -32,49 +19,6 @@ function dropAnim(drop)
 		loadAnimDict("pickup_object")
 		TaskPlayAnim(PlayerPedId(), "pickup_object", "pickup_low", 5.0, 1.0, 1.0, 48, 0.0, 0, 0, 0)
 	end
-end
-
-local function DoItemLoad(items)
-	if _loading then
-		return
-	end
-
-	SendNUIMessage({
-		type = "ITEMS_UNLOADED",
-		data = {},
-	})
-	Citizen.Wait(100)
-	SendNUIMessage({
-		type = "RESET_ITEMS",
-		data = {},
-	})
-
-	for k, v in pairs(_itemsSource) do
-		for k2, v2 in ipairs(v) do
-			_items[v2.name] = v2
-		end
-	end
-
-	if items ~= nil then
-		for k, v in pairs(items) do
-			_items[v.name] = v
-		end
-	end
-
-	SendNUIMessage({
-		type = "SET_ITEMS",
-		data = {
-			items = _items,
-		},
-	})
-
-	SendNUIMessage({
-		type = "ITEMS_LOADED",
-	})
-	TriggerEvent("Inventory:Client:ItemsLoaded")
-	_startup = true
-	_loading = false
-	_reloading = false
 end
 
 AddEventHandler("Inventory:Shared:DependencyUpdate", RetrieveComponents)
@@ -93,7 +37,6 @@ function RetrieveComponents()
 	UISounds = exports["quantum-base"]:FetchComponent("UISounds")
 	Blips = exports["quantum-base"]:FetchComponent("Blips")
 	PedInteraction = exports["quantum-base"]:FetchComponent("PedInteraction")
-	Input = exports["quantum-base"]:FetchComponent("Input")
 	Polyzone = exports["quantum-base"]:FetchComponent("Polyzone")
 	Hud = exports["quantum-base"]:FetchComponent("Hud")
 	Phone = exports["quantum-base"]:FetchComponent("Phone")
@@ -102,7 +45,6 @@ function RetrieveComponents()
 	Vehicles = exports["quantum-base"]:FetchComponent("Vehicles")
 	Sounds = exports["quantum-base"]:FetchComponent("Sounds")
 	ListMenu = exports["quantum-base"]:FetchComponent("ListMenu")
-	Buffs = exports["quantum-base"]:FetchComponent("Buffs")
 
 	--Weapons = exports['quantum-base']:FetchComponent('Weapons')
 end
@@ -118,7 +60,6 @@ AddEventHandler("Core:Shared:Ready", function()
 		"Progress",
 		"Crafting",
 		"Interaction",
-		"Input",
 		"Targeting",
 		"UISounds",
 		"Blips",
@@ -131,7 +72,6 @@ AddEventHandler("Core:Shared:Ready", function()
 		"Vehicles",
 		"Sounds",
 		"ListMenu",
-		"Buffs",
 		--'Weapons',
 	}, function(error)
 		if #error > 0 then
@@ -140,8 +80,7 @@ AddEventHandler("Core:Shared:Ready", function()
 		RetrieveComponents()
 		RegisterKeyBinds()
 		RegisterRandomItems()
-		DoItemLoad()
-		CreateDonorVanityItems()
+		LoadItems()
 
 		Callbacks:RegisterClientCallback("Inventory:ForceClose", function(data, cb)
 			Inventory.Close:All()
@@ -209,37 +148,18 @@ AddEventHandler("Core:Shared:Ready", function()
 	end)
 end)
 
-RegisterNetEvent("Inventory:Client:LoadItems", DoItemLoad)
-
 RegisterNetEvent("Inventory:Client:ReloadItems", function()
-	_reloading = true
-	Notification.Persistent:Info("INVENTORY_RELOAD", "Requesting Updated Item Definitions, Inventory Temporarily Unavailable")
-	TriggerServerEvent("Inventory:Server:ReloadItems")
-end)
-
-RegisterNetEvent("Inventory:Client:NewItemCreated", function(itemData)
-	_items[itemData.name] = itemData
-	SendNUIMessage({
-		type = "ADD_ITEM",
-		data = {
-			id = itemData.name,
-			item = itemData,
-		},
-	})
-end)
-
-RegisterNetEvent("Inventory:Client:ReceiveReload", function(items)
+	Notification:Info("Reloading Item Definitions, Things May Lag For A Second")
 	LoadItems()
-	DoItemLoad(items)
-	Notification.Persistent:Remove("INVENTORY_RELOAD")
-	Notification:Info("Item Reload Has Completed")
+	Notification:Info("Item Definition Load Finished")
 end)
 
+local _openCd = false
 function startCd()
-	Citizen.CreateThread(function()
-		_timedCd = true
-		Citizen.Wait(1000)
-		_timedCd = false
+	CreateThread(function()
+		_openCd = true
+		Wait(1000)
+		_openCd = false
 	end)
 end
 
@@ -254,65 +174,44 @@ end)
 
 RegisterNetEvent("Inventory:Client:Cache", function(inventory, refresh)
 	_cachedInventory = inventory
+
+	if refresh then
+		TriggerEvent("Weapons:Client:Attach")
+	end
 end)
 
 RegisterNetEvent("Inventory:Client:Open", function(inventory, inventory2)
 	if inventory ~= nil then
-		_openCd = true
 		LocalPlayer.state.inventoryOpen = true
 		Inventory.Set.Player:Inventory(inventory)
+
+		if inventory2 ~= nil then
+			Inventory.Set.Secondary:Inventory(inventory2)
+			Inventory.Set.Secondary.Data.Open = true
+			Inventory.Open:Secondary()
+		else
+			Inventory.Set.Secondary.Data.Open = false
+		end
 		Inventory.Set.Player.Data.Open = true
 
-		if inventory2?.crafting then
-			Inventory.Set.Secondary.Data.Open = true
-			SendNUIMessage({
-				type = "SET_MODE",
-				data = {
-					mode = "crafting",
-				},
-			})
-			SendNUIMessage({
-				type = "SET_BENCH",
-				data = {
-					bench = inventory2.bench,
-					cooldowns = inventory2.cooldowns,
-					recipes = inventory2.recipes,
-				},
-			})
-			SendNUIMessage({
-				type = "APP_SHOW",
-			})
-			SetNuiFocus(true, true)
-		else
-			if SecondInventory?.invType == 10 then
-				dropAnim(true)
-			end
-
-			if inventory2 ~= nil then
-				Inventory.Set.Secondary:Inventory(inventory2)
-			
-				SendNUIMessage({
-					type = "SET_MODE",
-					data = {
-						mode = "inventory",
-					},
-				})
-				
-				Inventory.Set.Secondary.Data.Open = true
-				Inventory.Open:Secondary()
-			else
-				Inventory.Set.Secondary.Data.Open = false
-			end
-
-			SendNUIMessage({
-				type = "APP_SHOW",
-			})
-			SetNuiFocus(true, true)
+		if SecondInventory?.invType == 10 then
+			dropAnim(true)
 		end
-	
-		Citizen.CreateThread(function()
+		
+		SendNUIMessage({
+			type = "SET_MODE",
+			data = {
+				mode = "inventory",
+			},
+		})
+		SendNUIMessage({
+			type = "APP_SHOW",
+		})
+		SetNuiFocus(true, true)
+
+		CreateThread(function()
 			while LocalPlayer.state.inventoryOpen do
-				Citizen.Wait(50)
+				Wait(50)
 			end
 			TriggerServerEvent("Inventory:server:closePlayerInventory", LocalPlayer.state.Character:GetData("SID"))
 		end)
@@ -330,7 +229,6 @@ RegisterNetEvent("Inventory:Client:Load", function(inventory, inventory2)
 	else
 		LocalPlayer.state.inventoryOpen = false
 	end
-	_openCd = false
 end)
 
 AddEventHandler("Characters:Client:Updated", function(key)
@@ -350,10 +248,35 @@ AddEventHandler("Vehicles:Client:ExitVehicle", function()
 	end
 end)
 
+function PlayTrunkOpenAnim()
+    local playerPed = PlayerPedId()
+    RequestAnimDict('anim@heists@prison_heiststation@cop_reactions')
+
+    while not HasAnimDictLoaded('anim@heists@prison_heiststation@cop_reactions') do
+        Wait(100)
+    end
+
+    TaskPlayAnim(playerPed, 'anim@heists@prison_heiststation@cop_reactions', 'cop_b_idle', 3.0, 3.0, -1, 49, 0.0, 0, 0, 0)
+
+    RemoveAnimDict('anim@heists@prison_heiststation@cop_reactions')
+end
+
+function PlayTrunkCloseAnim()
+	local playerPed = PlayerPedId()
+    RequestAnimDict('anim@heists@fleeca_bank@scope_out@return_case')
+
+    while not HasAnimDictLoaded('anim@heists@fleeca_bank@scope_out@return_case') do
+        Wait(100)
+    end
+
+    TaskPlayAnim( playerPed, 'anim@heists@fleeca_bank@scope_out@return_case', 'trevor_action', 2.0, 2.0, -1, 49, 0.25, 0.0, 0.0, GetEntityHeading(playerPed))
+    RemoveAnimDict('anim@heists@fleeca_bank@scope_out@return_case')
+end
+
 INVENTORY = {
 	_required = { "IsEnabled", "Open", "Close", "Set", "Enable", "Disable", "Toggle", "Check" },
 	IsEnabled = function(self)
-		return _startup and not _openCd and not _timedCd and not Hud:IsDisabled()
+		return _startup and not _disabled and not _openCd and not Hud:IsDisabled()
 	end,
 	Open = {
 		Player = function(self, doSecondary)
@@ -384,8 +307,11 @@ INVENTORY = {
 			Inventory.Set.Player.Data.Open = false
 
 			if trunkOpen and trunkOpen > 0 then
+				PlayTrunkCloseAnim()
+				Wait(900)
 				Vehicles.Sync.Doors:Shut(trunkOpen, 5, false)
 				trunkOpen = false
+				ClearPedTasks(PlayerPedId())
 			end
 
 			if Inventory.Set.Secondary.Data.Open then
@@ -394,8 +320,11 @@ INVENTORY = {
 		end,
 		Secondary = function(self)
 			if trunkOpen and trunkOpen > 0 then
+				PlayTrunkCloseAnim()
+				Wait(900)
 				Vehicles.Sync.Doors:Shut(trunkOpen, 5, false)
 				trunkOpen = false
+				ClearPedTasks(PlayerPedId())
 			end
 
 			if Inventory.Set.Secondary.Data.Open then
@@ -420,7 +349,6 @@ INVENTORY = {
 					Inventory.Set.Player.Data.Open = false
 					return
 				end
-
 				SendNUIMessage({
 					type = "SET_PLAYER_INVENTORY",
 					data = data,
@@ -476,7 +404,7 @@ INVENTORY = {
 						})
 					end
 
-					Citizen.SetTimeout(3000, function()
+					SetTimeout(3000, function()
 						_hkCd = false
 					end)
 				end)
@@ -486,23 +414,6 @@ INVENTORY = {
 	-- ALL OF THIS NEEDS TO BE VALIDATED SERVER SIDE
 	-- THIS IS BEING ADDED TO SAVE A CLIENT > SERVER > CLIENT CALL
 	Items = {
-		GetInstance = function(self, item)
-			if _cachedInventory == nil or _cachedInventory.inventory == nil or #_cachedInventory.inventory == 0 then
-				return nil
-			end
-
-			for k, v in ipairs(_cachedInventory.inventory) do
-				if v.Name == item
-					and (
-						_items[v.Name].durability == nil
-						or not _items[v.Name].isDestroyed
-						or (((v.CreateDate or 0) + _items[v.Name].durability) >= GetCloudTimeAsInt())
-							
-					) then
-						return v
-					end
-			end
-		end,
 		GetCount = function(self, item, bundleWeapons)
 			local counts = Inventory.Items:GetCounts(bundleWeapons)
 			return counts[item] or 0
@@ -518,19 +429,17 @@ INVENTORY = {
 			end
 
 			for k, v in ipairs(_cachedInventory.inventory) do
-				if _items[v.Name] then
-					if
-						_items[v.Name].durability == nil
-						or not _items[v.Name].isDestroyed
-						or (((v.CreateDate or 0) + _items[v.Name].durability) >= GetCloudTimeAsInt())
-					then
-						local itemData = Inventory.Items:GetData(v.Name)
-	
-						if bundleWeapons and itemData?.weapon then
-							counts[itemData?.weapon] = (counts[itemData?.weapon] or 0) + v.Count
-						end
-						counts[v.Name] = (counts[v.Name] or 0) + v.Count
+				if
+					_items[v.Name].durability == nil
+					or not _items[v.Name].isDestroyed
+					or (((v.CreateDate or 0) + _items[v.Name].durability) >= GetCloudTimeAsInt())
+				then
+					local itemData = Inventory.Items:GetData(v.Name)
+
+					if bundleWeapons and itemData?.weapon then
+						counts[itemData?.weapon] = (counts[itemData?.weapon] or 0) + v.Count
 					end
+					counts[v.Name] = (counts[v.Name] or 0) + v.Count
 				end
 			end
 
@@ -539,20 +448,18 @@ INVENTORY = {
 		GetTypeCounts = function(self)
 			local counts = {}
 
-			if LocalPlayer.state.Character == nil or _cachedInventory == nil or _items == nil then
+			if LocalPlayer.state.Character == nil or _cachedInventory == nil then
 				return counts
 			end
 
 			for k, v in ipairs(_cachedInventory.inventory) do
-				if _items[v.Name] ~= nil then
-					if
-						_items[v.Name].durability == nil
-						or not _items[v.Name].isDestroyed
-						or (((v.CreateDate or 0) + _items[v.Name].durability) >= GetCloudTimeAsInt())
-					then
-						local itemData = Inventory.Items:GetData(v.Name)
-						counts[itemData.type] = (counts[itemData.type] or 0) + v.Count
-					end
+				if
+					_items[v.Name].durability == nil
+					or not _items[v.Name].isDestroyed
+					or (((v.CreateDate or 0) + _items[v.Name].durability) >= GetCloudTimeAsInt())
+				then
+					local itemData = Inventory.Items:GetData(v.Name)
+					counts[itemData.type] = (counts[itemData.type] or 0) + v.Count
 				end
 			end
 
@@ -611,13 +518,13 @@ INVENTORY = {
 		},
 	},
 	Enable = function(self)
-		LocalPlayer.state.InventoryDisabled = false
+		_disabled = false
 	end,
 	Disable = function(self)
-		LocalPlayer.state.InventoryDisabled = true
+		_disabled = true
 	end,
 	Toggle = function(self)
-		LocalPlayer.state.InventoryDisabled = not LocalPlayer.state.InventoryDisabled
+		_disabled = not _disabled
 	end,
 	Dumbfuck = {
 		Open = function(self, data)
@@ -651,17 +558,6 @@ INVENTORY = {
 			end)
 		end,
 	},
-	PlayerShop = {
-		Open = function(self, shopId)
-			Callbacks:ServerCallback("PlayerShop:Server:Open", {
-				id = shopId,
-			}, function(state)
-				if state then
-					SecondInventory = { invType = state, owner = shopId }
-				end
-			end)
-		end,
-	},
 	Search = {
 		Character = function(self, serverId)
 			Callbacks:ServerCallback("Inventory:Search", {
@@ -687,23 +583,7 @@ INVENTORY = {
 				type = "CLOSE_STATIC_TOOLTIP",
 			})
 		end,
-	},
-	UpdateCachedMD = function(self, slot, md, triggeredKey)
-		if _cachedInventory and _cachedInventory.inventory then
-			for k, v in ipairs(_cachedInventory.inventory) do
-				if v.Slot == slot then
-					v.MetaData = md
-
-					local itemData = _items[v.Name]
-					if WEAPON_PROPS[itemData?.weapon or v.name] and triggeredKey == "WeaponComponents" then
-						
-					end
-
-					return
-				end
-			end
-		end
-	end,
+	}
 }
 
 AddEventHandler("Proxy:Shared:RegisterReady", function()
@@ -715,7 +595,6 @@ local Sounds = {
 	["BACK"] = { id = -1, sound = "CANCEL", library = "HUD_FRONTEND_DEFAULT_SOUNDSET" },
 	["UPDOWN"] = { id = -1, sound = "NAV_UP_DOWN", library = "HUD_FRONTEND_DEFAULT_SOUNDSET" },
 	["DISABLED"] = { id = -1, sound = "ERROR", library = "HUD_FRONTEND_DEFAULT_SOUNDSET" },
-	["SHOP_ADD"] = { id = -1, sound = "ATM_WINDOW", library = "HUD_FRONTEND_DEFAULT_SOUNDSET" }
 }
 RegisterNUICallback("FrontEndSound", function(data, cb)
 	cb("ok")
@@ -742,25 +621,12 @@ RegisterNUICallback("Close", function(data, cb)
 	Inventory:Enable()
 end)
 
-RegisterNUICallback("Crashed", function(data, cb)
-	startCd()
-	cb(true)
-	Inventory.Close:All()
-	Inventory:Enable()
-	_openCd = false
-end)
-
 RegisterNUICallback("BrokeShit", function(data, cb)
-	startCd()
 	cb(true)
+	startCd()
 	Inventory.Close:All()
 	Inventory:Enable()
-	_openCd = false
 	Notification:Error("Something Is Broken And Your Inventory Isn't Working, You May Need To Hard Nap To Fix")
-end)
-
-RegisterNetEvent("Inventory:Client:ReceiveItems", function(items)
-	_itemDefs = items or {}
 end)
 
 RegisterNetEvent("Characters:Client:Spawn", function()
@@ -769,11 +635,6 @@ RegisterNetEvent("Characters:Client:Spawn", function()
 		setupStores(shopsData)
 		startDropsTick()
 	end)
-
-	SendNUIMessage({
-		type = "SET_SCHEMS",
-		data = _schematics
-	})
 
 	SendNUIMessage({
 		type = "UPDATE_SETTINGS",
@@ -816,6 +677,7 @@ AddEventHandler("Inventory:Client:Trunk", function(entity, data)
 			SetEntityAsMissionEntity(entity.entity, true, true)
 			--SetVehicleDoorOpen(entity.entity, 5, true, false)
 			Vehicles.Sync.Doors:Open(entity.entity, 5, false, false)
+			PlayTrunkOpenAnim()
 		end
 	end)
 end)
@@ -901,29 +763,29 @@ function OpenInventory()
 			SecondInventory = { invType = _inInvPoly.inventory.invType, owner = _inInvPoly.inventory.owner }
 			requestSecondary = true
 		elseif not IsPedFalling(playerPed) and not IsPedClimbing(playerPed) and not IsPedDiving(playerPed) and not LocalPlayer.state.playingCasino then
-			if GetEntitySpeed(playerPed) < 8.0 then
-				local p = promise.new()
-				if Inventory:IsEnabled() then
-					Callbacks:ServerCallback("Inventory:CheckIfNearDropZone", {}, function(dropzone)
-						if dropzone ~= nil and not isPedInVehicle and not requestSecondary then
-							p:resolve({ invType = 10, owner = dropzone.id, position = dropzone.position })
-						else
-							local x, y, z = table.unpack(GetOffsetFromEntityInWorldCoords(playerPed, 0.0, 0, -0.99))
-							if LocalPlayer.state.isK9Ped then
-								z = z + 0.5
-							end
-							p:resolve({
-								invType = 10,
-								owner = string.format("%s:%s:%s", math.ceil(x), math.ceil(y), LocalPlayer.state.currentRoute),
-								position = vector3(x, y, z),
-							})
-						end
-					end)
-					local s = Citizen.Await(p)
-					if s ~= nil then
-						SecondInventory = s
-						requestSecondary = true
+			local p = promise.new()
+
+			while GetEntitySpeed(playerPed) > 2.5 do
+				Wait(1)
+			end
+
+			if Inventory:IsEnabled() then
+				Callbacks:ServerCallback("Inventory:CheckIfNearDropZone", {}, function(dropzone)
+					if dropzone ~= nil and not isPedInVehicle and not requestSecondary then
+						p:resolve({ invType = 10, owner = dropzone.id, position = dropzone.position })
+					else
+						local x, y, z = table.unpack(GetOffsetFromEntityInWorldCoords(playerPed, 0.0, 0, -0.99))
+						p:resolve({
+							invType = 10,
+							owner = string.format("%s:%s", math.ceil(x), math.ceil(y)),
+							position = vector3(x, y, z),
+						})
 					end
+				end)
+				local s = Citizen.Await(p)
+				if s ~= nil then
+					SecondInventory = s
+					requestSecondary = true
 				end
 			end
 		end
@@ -1048,246 +910,4 @@ RegisterNetEvent("Inventory:CloseUI", function()
 	startCd()
 	Inventory.Close:All()
 	Inventory:Enable()
-end)
-
-RegisterNetEvent("Inventory:Client:UpdateMetadata", function(slot, md, key)
-	Inventory:UpdateCachedMD(slot, md, key)
-end)
-
-local _shops = {}
-RegisterNetEvent("Inventory:Client:BasicShop:Set", function(shops)
-	_shops = shops
-	for k, v in pairs(shops) do
-		local menus = {
-			{
-				icon = "sack-dollar",
-				text = v.name or "Shop",
-				event = "Shop:Client:BasicShop:Open",
-				data = v.id,
-				isEnabled = function(data, ent)
-					return GlobalState[string.format("BasicShop:%s", data)]
-				end,
-			}
-		}
-	
-		if v.job == nil and LocalPlayer.state.Character ~= nil and v.owner == LocalPlayer.state.Character:GetData("SID") then
-			table.insert(menus, {
-				icon = "sack-dollar",
-				text = "Add Shop Moderator",
-				event = "Shop:Client:BasicShop:AddModerator",
-				data = v.id,
-			})
-			table.insert(menus, {
-				icon = "bars",
-				text = "View Shop Moderator",
-				event = "Shop:Client:BasicShop:ViewModerators",
-				data = v.id,
-			})
-			table.insert(menus, {
-				icon = "octagon-check",
-				text = "Open Shop",
-				event = "Shop:Client:BasicShop:OpenShop",
-				data = v.id,
-				isEnabled = function(data, ent)
-					return not GlobalState[string.format("BasicShop:%s", data)]
-				end,
-			})
-			table.insert(menus, {
-				icon = "octagon-xmark",
-				text = "Close Shop",
-				event = "Shop:Client:BasicShop:CloseShop",
-				data = v.id,
-				isEnabled = function(data, ent)
-					return GlobalState[string.format("BasicShop:%s", data)]
-				end,
-			})
-		else
-			if Jobs.Permissions:HasPermissionInJob(v.job, "JOB_SHOP_CONTROL") then
-				table.insert(menus, {
-					icon = "octagon-check",
-					text = "Open Shop",
-					event = "Shop:Client:BasicShop:OpenShop",
-					data = v.id,
-					isEnabled = function(data, ent)
-						return not GlobalState[string.format("BasicShop:%s", data)]
-					end,
-				})
-				table.insert(menus, {
-					icon = "octagon-xmark",
-					text = "Close Shop",
-					event = "Shop:Client:BasicShop:CloseShop",
-					data = v.id,
-					isEnabled = function(data, ent)
-						return GlobalState[string.format("BasicShop:%s", data)]
-					end,
-				})
-			end
-		end
-		
-		PedInteraction:Add(
-			"player-shop-" .. v.id,
-			GetHashKey(v.ped_model or 'S_F_Y_SweatShop_01'),
-			vector3(v.position.x, v.position.y, v.position.z),
-			v.position.h,
-			25.0,
-			menus,
-			"shop"
-		)
-	end
-end)
-
-RegisterNetEvent("Characters:Client:Logout", function()
-	for k, v in pairs(_shops) do
-		PedInteraction:Remove("player-shop-" .. v.id)
-	end
-end)
-
-RegisterNetEvent("Inventory:Client:BasicShop:Create", function(shop)
-	local menus = {
-		{
-			icon = "sack-dollar",
-			text = shop.name or "Shop",
-			event = "Shop:Client:BasicShop:Open",
-			data = shop.id,
-			isEnabled = function(data, ent)
-				return GlobalState[string.format("BasicShop:%s", data)]
-			end,
-		}
-	}
-
-	if shop.job == nil and LocalPlayer.state.Character ~= nil and tonumber(shop.owner) == LocalPlayer.state.Character:GetData("SID") then
-		table.insert(menus, {
-			icon = "sack-dollar",
-			text = "Add Shop Moderator",
-			event = "Shop:Client:BasicShop:AddModerator",
-			data = shop.id,
-		})
-		table.insert(menus, {
-			icon = "octagon-check",
-			text = "Open Shop",
-			event = "Shop:Client:BasicShop:OpenShop",
-			data = shop.id,
-			isEnabled = function(data, ent)
-				return not GlobalState[string.format("BasicShop:%s", data)]
-			end,
-		})
-		table.insert(menus, {
-			icon = "octagon-xmark",
-			text = "Close Shop",
-			event = "Shop:Client:BasicShop:CloseShop",
-			data = shop.id,
-			isEnabled = function(data, ent)
-				return GlobalState[string.format("BasicShop:%s", data)]
-			end,
-		})
-	else
-		if Jobs.Permissions:HasPermissionInJob(shop.job, "JOB_SHOP_CONTROL") then
-			table.insert(menus, {
-				icon = "octagon-check",
-				text = "Open Shop",
-				event = "Shop:Client:BasicShop:OpenShop",
-				data = shop.id,
-				isEnabled = function(data, ent)
-					return not GlobalState[string.format("BasicShop:%s", data)]
-				end,
-			})
-			table.insert(menus, {
-				icon = "octagon-xmark",
-				text = "Close Shop",
-				event = "Shop:Client:BasicShop:CloseShop",
-				data = shop.id,
-				isEnabled = function(data, ent)
-					return GlobalState[string.format("BasicShop:%s", data)]
-				end,
-			})
-		end
-	end
-
-
-	PedInteraction:Add(
-		"player-shop-" .. shop.id,
-		GetHashKey(shop.ped_model or 'S_F_Y_SweatShop_01'),
-		vector3(shop.position.x, shop.position.y, shop.position.z),
-		shop.position.h,
-		25.0,
-		menus,
-		"shop"
-	)
-end)
-
-RegisterNetEvent("Inventory:Client:BasicShop:Delete", function(shopId)
-	PedInteraction:Remove("player-shop-" .. shopId)
-end)
-
-RegisterNUICallback("AddToShop", function(data, cb)
-	Callbacks:ServerCallback("Inventory:PlayerShop:AddItem", data, cb)
-end)
-
-RegisterNetEvent("StoreFailedPurchase", function(data)
-	SendNUIMessage({
-		type = "SET_INVENTORIES",
-		data = data,
-	})
-end)
-
-AddEventHandler("Shop:Client:BasicShop:Open", function(obj, shopId)
-	Inventory.PlayerShop:Open(shopId)
-end)
-
-AddEventHandler("Shop:Client:BasicShop:AddModerator", function(obj, shopId)
-	Input:Show(
-		"Add Shop Moderator",
-		"Add Shop Moderator",
-		{
-			{
-				id = "sid",
-				type = "number",
-				options = {
-					inputProps = {
-						maxLength = 11,
-					},
-				},
-			},
-		},
-		"Shop:Client:BasicShop:AddModeratorInput",
-		shopId
-	)
-end)
-
-AddEventHandler("Shop:Client:BasicShop:AddModeratorInput", function(values, shopId)
-	Callbacks:ServerCallback("Inventory:PlayerShop:AddModerator", {
-		shop = shopId,
-		sid = values.sid
-	})
-end)
-
-AddEventHandler("Shop:Client:BasicShop:ViewModerators", function(obj, shopId)
-	Callbacks:ServerCallback("Inventory:PlayerShop:ViewModerators", shopId, function(list)
-		if list then
-			ListMenu:Show({
-				main = {
-					label = "Shop Moderators",
-					items = list,
-				},
-			})
-		end
-	end)
-end)
-
-AddEventHandler("Shop:Client:BasicShop:RemoveModerator", function(data)
-	Callbacks:ServerCallback("Inventory:PlayerShop:RemoveModerator", data)
-end)
-
-AddEventHandler("Shop:Client:BasicShop:OpenShop", function(obj, shopId)
-	Callbacks:ServerCallback("Inventory:PlayerShop:ChangeState", {
-		id = shopId,
-		state = true
-	})
-end)
-
-AddEventHandler("Shop:Client:BasicShop:CloseShop", function(obj, shopId)
-	Callbacks:ServerCallback("Inventory:PlayerShop:ChangeState", {
-		id = shopId,
-		state = false
-	})
 end)

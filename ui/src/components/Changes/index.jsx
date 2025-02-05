@@ -9,13 +9,16 @@ import Alert from './Alert';
 const useStyles = makeStyles((theme) => ({
 	wrapper: {
 		position: 'absolute',
-		right: '20%',
-		bottom: 35,
+		left: 0,
+		right: 0,
+		bottom: 175,
 		margin: 'auto',
-		width: 'fit-content',
+		height: 125,
+		width: 125,
+		// width: 'fit-content',
 		display: 'flex',
-		flexDirection: 'column',
-		gap: 4,
+		flexDirection: 'row',
+		gap: 20,
 		justifyContent: 'center',
 	},
 }));
@@ -31,7 +34,7 @@ export default () => {
 		<div className={classes.wrapper}>
 			{changes
 				.sort((a, b) => a.id - b.id)
-				.slice(0, 5)
+				.slice(0, 4)
 				.map((alert) => {
 					return <Alert key={`alert-${alert.id}`} alert={alert} />;
 				})}

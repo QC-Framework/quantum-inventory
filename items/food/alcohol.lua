@@ -2,7 +2,7 @@ _itemsSource["alcohol"] = {
 	{
 		name = "wine_bottle",
 		label = "Bottle of Wine",
-		price = 50,
+		price = 300,
 		isUsable = true,
 		isRemoved = true,
 		isStackable = 10,
@@ -47,7 +47,7 @@ _itemsSource["alcohol"] = {
 	{
 		name = "whiskey",
 		label = "Whiskey",
-		price = 50,
+		price = 200,
 		isUsable = true,
 		isRemoved = true,
 		isStackable = 50,
@@ -62,7 +62,7 @@ _itemsSource["alcohol"] = {
 	{
 		name = "rum",
 		label = "Rum",
-		price = 50,
+		price = 200,
 		isUsable = true,
 		isRemoved = true,
 		isStackable = 50,
@@ -92,7 +92,7 @@ _itemsSource["alcohol"] = {
 	{
 		name = "tequila",
 		label = "Tequila",
-		price = 50,
+		price = 220,
 		isUsable = true,
 		isRemoved = true,
 		isStackable = 50,
@@ -137,7 +137,7 @@ _itemsSource["alcohol"] = {
 	{
 		name = "vodka",
 		label = "Vodka",
-		price = 50,
+		price = 150,
 		isUsable = true,
 		isRemoved = true,
 		isStackable = 50,
@@ -180,7 +180,7 @@ _itemsSource["alcohol"] = {
 		isDestroyed = true,
 		durability = (60 * 60 * 24 * 5),
 	},
-	{
+    {
 		name = "pina_colada",
 		label = "Pina Colada",
 		price = 50,
@@ -198,21 +198,6 @@ _itemsSource["alcohol"] = {
 	{
 		name = "raspberry_mimosa",
 		label = "Raspberry Mimosa",
-		price = 50,
-		isUsable = true,
-		isRemoved = true,
-		isStackable = 50,
-		type = 1,
-		rarity = 1,
-		closeUi = true,
-		weight = 0.1,
-		metalic = false,
-		isDestroyed = true,
-		durability = (60 * 60 * 24 * 5),
-	},
-	{
-		name = "bahama_mamas",
-		label = "Bahama Mamas",
 		price = 50,
 		isUsable = true,
 		isRemoved = true,

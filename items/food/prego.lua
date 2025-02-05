@@ -154,7 +154,7 @@ _itemsSource["prego"] = {
 		durability = (60 * 60 * 24 * 5),
 		energyModifier = {
 			modifier = 1.1,
-			duration = 18, -- not seconds?
+			duration = 2, -- not seconds?
 			cooldown = 60, -- seconds
 			skipScreenEffects = true,
 		}

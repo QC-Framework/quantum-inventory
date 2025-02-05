@@ -40,17 +40,4 @@ function RegisterStashCallbacks()
 			cb(false)
 		end
 	end)
-
-	Callbacks:RegisterServerCallback("PlayerShop:Server:Open", function(source, data, cb)
-		if _playerShops[data.id] then
-			if not _openInvs[string.format("200-%s", data.id)] then
-				Inventory:OpenSecondary(source, 200, data.id)
-				cb(200)
-			else
-				cb(false)
-			end
-		else
-			cb(false)
-		end
-	end)
 end

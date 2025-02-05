@@ -118,7 +118,7 @@ _itemsSource["noodles"] = {
 	},
     {
 		name = "maki_calirolls",
-		label = "San Andreas Maki",
+		label = "California Maki",
 		price = 100,
 		isUsable = true,
 		isRemoved = true,

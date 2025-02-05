@@ -4,7 +4,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import Moment from 'react-moment';
 
 import { FormatThousands, Sanitize } from '../../util/Parser';
-import { getItemLabel, itemLabels, itemRarities } from './item';
+import { getItemLabel } from './item';
 import { List, ListItem, ListItemText } from '@mui/material';
 import { useSelector } from 'react-redux';
 
@@ -27,17 +27,13 @@ const ignoredFields = [
 	'WeaponTint',
 	'CustomItemLabel',
 	'CustomItemImage',
-	'CustomItemAction',
 	'Items',
 	'Department',
 	'Scratched',
 	'PoliceWeaponId',
 	'Mugshot',
+	'MethTable',
 	'CustomAmt',
-	'Inviter',
-	'Officer',
-	'Disabled',
-	'Brew',
 ];
 
 const lua2json = (lua) =>
@@ -58,8 +54,6 @@ export default ({
 	isEligible = false,
 	isQualified = false,
 }) => {
-	const schematics = useSelector((state) => state.crafting.schematics);
-	const equipped = useSelector((state) => state.app.equipped);
 	const metadata = Boolean(instance?.MetaData)
 		? typeof instance?.MetaData == 'string'
 			? lua2json(instance.MetaData)
@@ -70,7 +64,6 @@ export default ({
 	const useStyles = makeStyles((theme) => ({
 		body: {
 			minWidth: 250,
-			maxWidth: 400,
 		},
 		itemName: {
 			fontSize: 24,
@@ -78,7 +71,9 @@ export default ({
 		},
 		itemType: {
 			fontSize: 16,
-			color: theme.palette.text.main,
+			color: Boolean(theme.palette.rarities[`rare${item.rarity}`])
+				? theme.palette.rarities[`rare${item.rarity}`]
+				: theme.palette.text.main,
 		},
 		usable: {
 			fontSize: 16,
@@ -196,14 +191,59 @@ export default ({
 	const classes = useStyles();
 
 	const getTypeLabel = () => {
-		if (Boolean(itemLabels[item.type])) return itemLabels[item.type];
-		else return item.type;
+		switch (item.type) {
+			case 1:
+				return 'Consumable';
+			case 2:
+				return 'Weapon';
+			case 3:
+				return 'Tool';
+			case 4:
+				return 'Crafting Ingredient';
+			case 5:
+				return 'Collectable';
+			case 6:
+				return 'Junk';
+			case 8:
+				return 'Evidence';
+			case 9:
+				return 'Ammunition';
+			case 10:
+				return 'Container';
+			case 11:
+				return 'Gem';
+			case 12:
+				return 'Paraphernalia';
+			case 13:
+				return 'Wearable';
+			case 14:
+				return 'Contraband';
+			case 15:
+				return 'Collectable (Gang Chain)';
+			case 16:
+				return 'Weapon Attachment';
+			case 17:
+				return 'Crafting Schematic';
+			default:
+				return 'Unknown';
+		}
 	};
 
 	const getRarityLabel = () => {
-		if (Boolean(itemRarities[item.rarity]))
-			return itemRarities[item.rarity];
-		else return 'Dogshit';
+		switch (item.rarity) {
+			case 1:
+				return 'Common';
+			case 2:
+				return 'Uncommon';
+			case 3:
+				return 'Rare';
+			case 4:
+				return 'Epic';
+			case 5:
+				return 'Objective';
+			default:
+				return 'Dogshit';
+		}
 	};
 
 	const isDataBlacklisted = (key) => {
@@ -240,7 +280,7 @@ export default ({
 				return (
 					<span className={classes.metafield}>
 						<b>Date of Birth</b>:
-						<Moment format="YYYY/MM/DD">{value}</Moment>
+						<Moment date={value * 1000} format="YYYY/MM/DD" />
 					</span>
 				);
 			case 'EvidenceAmmoType':
@@ -379,12 +419,6 @@ export default ({
 						</ul>
 					</span>
 				);
-			case 'MethTable':
-				return (
-					<span className={classes.metafield}>
-						<b>Table ID</b>: {value}
-					</span>
-				);
 			default:
 				return (
 					<span className={classes.metafield}>
@@ -399,15 +433,15 @@ export default ({
 		<div className={classes.body}>
 			<div className={classes.itemName}>
 				{getItemLabel(instance, item)}
-				{shop && !free && (instance?.Price ?? item.price) > 0 && (
+				{shop && !free && (
 					<span className={classes.itemPrice}>
-						{FormatThousands(instance?.Price ?? item.price)}
+						{FormatThousands(item.price)}
 					</span>
 				)}
 			</div>
 			<div className={classes.itemType}>
-				{getTypeLabel()}
-				{Boolean(item.isUsable) && (
+				{`${getRarityLabel()} ${getTypeLabel()}`}
+				{item.isUsable && (
 					<span className={classes.usable}>Usable</span>
 				)}
 			</div>
@@ -465,36 +499,34 @@ export default ({
 					</div>
 				)}
 
-			{Boolean(item?.component) &&
-				Boolean(equipped) &&
-				(Boolean(
-					item.component.strings[
-						items[equipped.Name].weapon ?? equipped.Name
-					],
-				) ? (
-					<div className={classes.attachFitment}>
-						<span className={classes.metafield}>
-							<b>Fits On Currently Equipped Weapon</b>
-						</span>
-					</div>
-				) : (
-					<div className={classes.attachFitment}>
-						<span className={classes.metafield}>
-							<b>Does Not Fit On Currently Equipped Weapon</b>
-						</span>
-					</div>
-				))}
+			{Boolean(item?.component) && (
+				<div className={classes.attachFitment}>
+					<span className={classes.metafield}>
+						<b>Attachment Fits On</b>:{' '}
+						<ul className={classes.attchList}>
+							{Object.keys(item.component.strings).length <=
+							10 ? (
+								Object.keys(item.component.strings).map(
+									(weapon) => {
+										let wepItem = items[weapon];
+										if (!Boolean(wepItem)) return null;
+										return <li>{wepItem.label}</li>;
+									},
+								)
+							) : (
+								<span>Fits On Most Weapons</span>
+							)}
+						</ul>
+					</span>
+				</div>
+			)}
 			{Boolean(item.schematic) &&
-				Boolean(schematics[item.schematic]) &&
-				Boolean(items[schematics[item.schematic].result.name]) && (
+				Boolean(items[item.schematic.result.name]) && (
 					<div className={classes.attachFitment}>
 						<span className={classes.metafield}>
 							<b>Teaches</b>:
-							{` Crafting x${
-								schematics[item.schematic].result.count
-							} ${
-								items[schematics[item.schematic].result.name]
-									.label
+							{` Crafting x${item.schematic.result.count} ${
+								items[item.schematic.result.name].label
 							}`}
 						</span>
 					</div>
@@ -519,10 +551,10 @@ export default ({
 			<div className={classes.tooltipDetails}>
 				Weight:{' '}
 				<span className={classes.tooltipValue}>
-					{item?.weight || 0} lbs
+					{item?.weight || 0} kg
 					{instance.Count > 1 && (
 						<span className={classes.stackable}>
-							(Total: {(item?.weight || 0) * instance.Count} lbs)
+							(Total: {(item?.weight || 0) * instance.Count} kg)
 						</span>
 					)}
 				</span>

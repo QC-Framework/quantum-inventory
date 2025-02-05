@@ -507,11 +507,11 @@ export default ({ item, instance }) => {
 				<div className={classes.tooltipDetails}>
 					Weight:{' '}
 					<span className={classes.tooltipValue}>
-						{item?.weight || 0} lbs
+						{item?.weight || 0} kg
 						{instance.Count > 1 && (
 							<span className={classes.stackable}>
 								(Total: {(item?.weight || 0) * instance.Count}{' '}
-								lbs)
+								kg)
 							</span>
 						)}
 					</span>

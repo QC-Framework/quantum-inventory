@@ -2,24 +2,24 @@ _itemsSource["burgershot"] = {
 	{
 		name = "burgershot_cup",
 		label = "BS Cup",
-		price = 5,
+		price = 0,
 		isUsable = false,
 		isRemoved = false,
-		isStackable = 1000,
+		isStackable = 200,
 		type = 1,
 		rarity = 1,
 		closeUi = false,
 		metalic = false,
 		isDestroyed = true,
-		weight = 0.0,
+		weight = 0.05,
 	},
 	{
 		name = "bun",
 		label = "Hamburger Bun",
-		price = 5,
+		price = 0,
 		isUsable = false,
 		isRemoved = false,
-		isStackable = 1000,
+		isStackable = 200,
 		type = 1,
 		rarity = 1,
 		closeUi = false,
@@ -30,10 +30,10 @@ _itemsSource["burgershot"] = {
 	{
 		name = "patty",
 		label = "Hamburger Patty",
-		price = 10,
+		price = 0,
 		isUsable = false,
 		isRemoved = false,
-		isStackable = 1000,
+		isStackable = 200,
 		type = 1,
 		rarity = 1,
 		closeUi = false,
@@ -56,8 +56,7 @@ _itemsSource["burgershot"] = {
 		durability = (60 * 60 * 24 * 5),
 		statusChange = {
 			Add = {
-				PLAYER_HUNGER = 100,
-				PLAYER_THIRST = 25,
+				PLAYER_HUNGER = 70,
 			},
 		},
 		animConfig = {
@@ -190,7 +189,6 @@ _itemsSource["burgershot"] = {
 				disableCombat = true,
 			},
 		},
-		healthModifier = 15,
 		metalic = false,
 		isDestroyed = true,
 	},
@@ -387,10 +385,10 @@ _itemsSource["burgershot"] = {
 		isDestroyed = true,
 		energyModifier = {
 			modifier = 1.1,
-			duration = 18, -- not seconds?
+			duration = 2, -- not seconds?
 			cooldown = 60, -- seconds
 			skipScreenEffects = true,
-		},
+		}
 	},
 	{
 		name = "orangotang_icecream",
@@ -434,10 +432,10 @@ _itemsSource["burgershot"] = {
 		isDestroyed = true,
 		energyModifier = {
 			modifier = 1.1,
-			duration = 18, -- not seconds?
+			duration = 2, -- not seconds?
 			cooldown = 60, -- seconds
 			skipScreenEffects = true,
-		},
+		}
 	},
 	{
 		name = "goat_cheese_wrap",
@@ -457,7 +455,7 @@ _itemsSource["burgershot"] = {
 				PLAYER_HUNGER = 100,
 			},
 		},
-		stressTicks = { "2", "2", "3", "4", "5" },
+		stressTicks = { "1", "2", "3", "4", "5" },
 		animConfig = {
 			anim = "bshot_wrap1",
 			time = 15000,
@@ -474,7 +472,6 @@ _itemsSource["burgershot"] = {
 				disableCombat = true,
 			},
 		},
-		healthModifier = 15,
 		metalic = false,
 		isDestroyed = true,
 	},
@@ -549,14 +546,14 @@ _itemsSource["burgershot"] = {
 		},
 		statusChange = {
 			Add = {
-				PLAYER_THIRST = 100,
+				PLAYER_THIRST = 50,
 				PLAYER_HUNGER = 10,
 			},
 		},
 		progressModifier = {
-			modifier = 40,
+			modifier = 60,
 			min = 3,
 			max = 6,
-		},
+		}
 	},
 }

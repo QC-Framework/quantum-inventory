@@ -2,7 +2,7 @@ import React, { Fragment, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { LinearProgress } from '@mui/material';
 import { makeStyles } from '@mui/styles';
-import { fallbackItem, getItemImage, getItemLabel } from './item';
+import { getItemImage, getItemLabel } from './item';
 
 const initialState = {
 	mouseX: null,
@@ -17,45 +17,53 @@ const useStyles = makeStyles((theme) => ({
 		zIndex: 1,
 	},
 	img: {
-		height: 190,
+		height: 125,
 		width: '100%',
 		overflow: 'hidden',
 		zIndex: 3,
-		backgroundSize: '50%',
+		backgroundSize: '40%',
 		backgroundRepeat: 'no-repeat',
 		backgroundPosition: 'center center',
 	},
 	label: {
-		bottom: 7,
+		bottom: 0,
 		left: 0,
-		right: 0,
 		position: 'absolute',
 		textAlign: 'center',
 		padding: '0 5px',
 		width: '100%',
-		zIndex: 4,
-		margin: 'auto',
-		maxWidth: '90%',
+		maxWidth: '100%',
 		overflow: 'hidden',
-		textOverflow: 'ellipsis',
 		whiteSpace: 'nowrap',
+		color: theme.palette.text.main,
+		background: theme.palette.secondary.light,
+		borderTop: `1px solid ${theme.palette.border.divider}`,
+		borderBottomLeftRadius: 6,
+		borderBottomRightRadius: 6,
+		zIndex: 4,
 	},
 	slot: {
-		width: 165,
-		height: 190,
+		width: 125,
+		height: 125,
+		backgroundColor: `${theme.palette.secondary.dark}65`,
+		border: `1px solid ${theme.palette.border.divider}`,
 		position: 'relative',
 		zIndex: 2,
-		border: '1px solid #1c1c1c6e',
-		'&.mini': {
-			width: 132,
-			height: 152,
+		borderRadius: 5,
+		'&.rarity-1': {
+			borderColor: `${theme.palette.rarities.rare1}40`,
 		},
-		'&:not(.broken)': {
-			backgroundColor: `${theme.palette.secondary.light}61`,
+		'&.rarity-2': {
+			borderColor: `${theme.palette.rarities.rare2}80`,
 		},
-		'&.broken': {
-			backgroundColor: `${theme.palette.error.dark}4a`,
-			borderColor: `${theme.palette.error.dark}6e`,
+		'&.rarity-3': {
+			borderColor: `${theme.palette.rarities.rare3}80`,
+		},
+		'&.rarity-4': {
+			borderColor: `${theme.palette.rarities.rare4}80`,
+		},
+		'&.rarity-5': {
+			borderColor: `${theme.palette.rarities.rare5}80`,
 		},
 	},
 	count: {
@@ -83,15 +91,22 @@ const useStyles = makeStyles((theme) => ({
 		},
 	},
 	durability: {
-		bottom: 0,
+		bottom: 30,
 		left: 0,
 		position: 'absolute',
 		width: '100%',
 		maxWidth: '100%',
 		overflow: 'hidden',
-		height: 4,
+		height: 7,
 		background: 'transparent',
 		zIndex: 4,
+		'&.broken': {
+			background: theme.palette.text.alt,
+		},
+	},
+	broken: {
+		backgroundColor: theme.palette.text.alt,
+		transition: 'none !important',
 	},
 	progressbar: {
 		transition: 'none !important',
@@ -115,10 +130,8 @@ const useStyles = makeStyles((theme) => ({
 export default (props) => {
 	const classes = useStyles();
 	const hover = useSelector((state) => state.inventory.hover);
-	const items = useSelector((state) => state.inventory.items);
+	const itemData = useSelector((state) => state.inventory.items)[hover?.Name];
 	const [state, setState] = React.useState(initialState);
-
-	const itemData = Boolean(hover) ? items[hover.Name] ?? fallbackItem : null;
 
 	const calcDurability = () => {
 		if (!Boolean(hover) || !Boolean(itemData?.durability)) null;
@@ -130,8 +143,6 @@ export default (props) => {
 		);
 	};
 	const durability = calcDurability();
-
-	const broken = durability <= 0;
 
 	const mouseMove = (event) => {
 		event.preventDefault();
@@ -160,11 +171,7 @@ export default (props) => {
 						: undefined
 				}
 			>
-				<div
-					className={`${classes.slot} rarity-${itemData.rarity}${
-						Boolean(broken) ? ' broken' : ''
-					}`}
-				>
+				<div className={`${classes.slot} rarity-${itemData.rarity}`}>
 					{Boolean(hover) && (
 						<div
 							className={classes.img}
@@ -185,26 +192,41 @@ export default (props) => {
 						<div className={classes.count}>{hover.Count}</div>
 					)}
 					{Boolean(itemData?.durability) &&
-					Boolean(hover?.CreateDate) &&
-					!broken ? (
-						<LinearProgress
-							className={classes.durability}
-							color="primary"
-							classes={{
-								determinate: classes.progressbar,
-								bar: classes.progressbar,
-								bar1: classes.progressbar,
-							}}
-							variant="determinate"
-							value={durability}
-						/>
-					) : null}
+						Boolean(hover?.CreateDate) &&
+						(durability > 0 ? (
+							<LinearProgress
+								className={classes.durability}
+								color={
+									durability >= 75
+										? 'success'
+										: durability >= 50
+										? 'warning'
+										: 'error'
+								}
+								classes={{
+									determinate: classes.progressbar,
+									bar: classes.progressbar,
+									bar1: classes.progressbar,
+								}}
+								variant="determinate"
+								value={durability}
+							/>
+						) : (
+							<LinearProgress
+								className={classes.durability}
+								classes={{
+									determinate: classes.broken,
+									bar: classes.broken,
+									bar1: classes.broken,
+								}}
+								color="secondary"
+								variant="determinate"
+								value={100}
+							/>
+						))}
 					{hover.shop && Boolean(itemData) && (
 						<div className={classes.price}>
-							{hover.free ||
-							!Boolean(hover.Price ?? itemData.price)
-								? 'FREE'
-								: (hover.Price ?? itemData.price) * hover.Count}
+							{hover.free ? 'FREE' : itemData.price * hover.Count}
 						</div>
 					)}
 				</div>

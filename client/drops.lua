@@ -4,17 +4,17 @@ local closerDrops = {}
 local closerDropsIds = {}
 
 function runDropsUpdate(checkRemovals)
-	if LocalPlayer.state.myPos ~= nil then
+	if LocalPlayer.state.position ~= nil then
 		closerDrops = {}
 		closerDropsIds = {}
 		if #dropzones > 0 then
 			for k, v in ipairs(dropzones) do
-				local distance = #(LocalPlayer.state.myPos - vector3(v.coords.x, v.coords.y, v.coords.z))
+				local distance = #(LocalPlayer.state.position - vector3(v.coords.x, v.coords.y, v.coords.z))
 				if distance <= 25.0 then
 					if not closerDrops[k] then
 						table.insert(
 							closerDrops,
-							{ coords = vector3(v.coords.x, v.coords.y, v.coords.z + 0.2), route = v.route }
+							{ coords = vector3(v.coords.x, v.coords.y, v.coords.z + 0.35), route = v.route }
 						)
 						closerDropsIds[k] = #closerDrops
 					end
@@ -28,14 +28,14 @@ function runDropsUpdate(checkRemovals)
 end
 
 function startDropsTick()
-	Citizen.CreateThread(function()
+	CreateThread(function()
 		while LocalPlayer.state.loggedIn do
 			runDropsUpdate()
-			Citizen.Wait(1000)
+			Wait(1000)
 		end
 	end)
 
-	Citizen.CreateThread(function()
+	CreateThread(function()
 		while LocalPlayer.state.loggedIn do
 			if #closerDrops > 0 then
 				for k, v in ipairs(closerDrops) do
@@ -52,14 +52,14 @@ function startDropsTick()
 							0.25,
 							0.25,
 							0.25,
-							255,
-							255,
-							255,
-							200,
+							139,
+							16,
+							20,
+							175,
 							false,
 							false,
 							2,
-							false,
+							true,
 							false,
 							false,
 							false
@@ -67,9 +67,9 @@ function startDropsTick()
 					end
 				end
 			else
-				Citizen.Wait(800)
+				Wait(800)
 			end
-			Citizen.Wait(3)
+			Wait(3)
 		end
 	end)
 end

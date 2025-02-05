@@ -3,8 +3,8 @@ import { CircularProgress, LinearProgress, Popover } from '@mui/material';
 import { makeStyles } from '@mui/styles';
 import { connect, useDispatch, useSelector } from 'react-redux';
 
-import { closeInventory, mergeSlot, moveSlot, swapSlot } from './actions';
-import { fallbackItem, getItemImage, getItemLabel } from './item';
+import { mergeSlot, moveSlot, swapSlot } from './actions';
+import { getItemImage, getItemLabel } from './item';
 import Nui from '../../util/Nui';
 import { useSound } from '../../hooks';
 import Tooltip from './Tooltip';
@@ -13,67 +13,62 @@ import { FormatThousands } from '../../util/Parser';
 const useStyles = makeStyles((theme) => ({
 	slotWrap: {
 		display: 'inline-block',
+		margin: 1,
 		boxSizing: 'border-box',
 		flexGrow: 0,
-		width: 'calc(20% - 4px)',
-		maxWidth: 170,
+		width: 125,
+		flexBasis: 125,
 		zIndex: 1,
-		position: 'relative',
-		'&.mini': {
-			width: 132,
-			flexBasis: 132,
-		},
-		'&.equipped': {
-			marginLeft: 40,
-		},
 	},
 	slot: {
 		width: '100%',
-		height: 190,
-		backgroundColor: `${theme.palette.secondary.light}61`,
-		border: '1px solid #1c1c1c6e',
+		height: 125,
+		backgroundColor: `${theme.palette.secondary.dark}65`,
+		border: `1px solid ${theme.palette.border.divider}`,
 		position: 'relative',
 		zIndex: 2,
-		'&.mini': {
-			width: 132,
-			height: 152,
-		},
-		'&.solid': {
-			backgroundColor: `${theme.palette.secondary.light}c4`,
-		},
-		'&:not(.broken):not(.broken)': {
+		borderRadius: 5,
+		'&:not(.disabled):not(.empty)': {
 			transition: 'background ease-in 0.15s',
 			'&:hover': {
 				backgroundColor: `${theme.palette.secondary.dark}9e`,
 			},
 		},
-		'&.broken': {
-			backgroundColor: `${theme.palette.error.dark}4a`,
-			borderColor: `${theme.palette.error.dark}6e`,
-			'&:hover': {
-				backgroundColor: `${theme.palette.error.dark}36`,
-			},
+		'&.rarity-1': {
+			borderColor: `${theme.palette.rarities.rare1}40`,
+		},
+		'&.rarity-2': {
+			borderColor: `${theme.palette.rarities.rare2}80`,
+		},
+		'&.rarity-3': {
+			borderColor: `${theme.palette.rarities.rare3}80`,
+		},
+		'&.rarity-4': {
+			borderColor: `${theme.palette.rarities.rare4}80`,
+		},
+		'&.rarity-5': {
+			borderColor: `${theme.palette.rarities.rare5}80`,
+		},
+		'&.disabled': {
+			borderColor: `${theme.palette.error.main}`,
 		},
 	},
 	slotDrag: {
 		width: '100%',
-		height: 190,
-		border: `1px solid ${theme.palette.border.divider}9e`,
+		height: 125,
+		border: `1px solid ${theme.palette.primary.main}`,
 		position: 'relative',
 		zIndex: 2,
 		opacity: 0.35,
 		transition: 'opacity ease-in 0.15s, border ease-in 0.15s',
 	},
 	img: {
-		height: 190,
+		height: 125,
 		width: '100%',
 		zIndex: 3,
-		backgroundSize: '50%',
+		backgroundSize: '40%',
 		backgroundRepeat: 'no-repeat',
 		backgroundPosition: 'center center',
-		'&.mini': {
-			height: 152,
-		},
 	},
 	count: {
 		top: 0,
@@ -86,22 +81,23 @@ const useStyles = makeStyles((theme) => ({
 		zIndex: 4,
 	},
 	label: {
-		bottom: 7,
+		bottom: 0,
 		left: 0,
-		right: 0,
 		position: 'absolute',
 		textAlign: 'center',
-		height: 30,
-		lineHeight: '30px',
+		height: 25,
+		lineHeight: '25px',
 		fontSize: 16,
 		width: '100%',
-		color: theme.palette.text.main,
-		zIndex: 4,
-		margin: 'auto',
-		maxWidth: '90%',
+		maxWidth: '100%',
 		overflow: 'hidden',
-		textOverflow: 'ellipsis',
 		whiteSpace: 'nowrap',
+		color: theme.palette.text.main,
+		background: theme.palette.secondary.light,
+		borderTop: `1px solid ${theme.palette.border.divider}`,
+		borderBottomLeftRadius: 6,
+		borderBottomRightRadius: 6,
+		zIndex: 4,
 	},
 	equipped: {
 		top: 0,
@@ -116,17 +112,18 @@ const useStyles = makeStyles((theme) => ({
 		zIndex: 4,
 	},
 	hotkey: {
-		height: 'fit-content',
-		width: 'fit-content',
-		position: 'absolute',
 		top: 0,
-		bottom: 0,
 		left: 0,
-		right: 0,
-		margin: 'auto',
-		fontSize: '75px',
-		opacity: 0.2,
-		zIndex: -1,
+		position: 'absolute',
+		padding: '0 5px',
+		width: '20px',
+		color: theme.palette.primary.alt,
+		background: theme.palette.secondary.light,
+		borderRight: `1px solid ${theme.palette.border.divider}`,
+		borderBottom: `1px solid ${theme.palette.border.divider}`,
+		borderBottomRightRadius: 5,
+		borderTopLeftRadius: 5,
+		zIndex: 4,
 	},
 	price: {
 		top: 0,
@@ -153,25 +150,19 @@ const useStyles = makeStyles((theme) => ({
 			},
 		},
 	},
-	free: {
-		top: 0,
-		left: 0,
-		position: 'absolute',
-		padding: '0 5px',
-		textShadow: `0 0 5px ${theme.palette.secondary.dark}`,
-		color: theme.palette.success.main,
-		zIndex: 4,
-	},
 	durability: {
-		bottom: 0,
+		bottom: 25,
 		left: 0,
 		position: 'absolute',
 		width: '100%',
 		maxWidth: '100%',
 		overflow: 'hidden',
-		height: 4,
+		height: 5,
 		background: 'transparent',
 		zIndex: 4,
+	},
+	broken: {
+		backgroundColor: theme.palette.text.alt,
 	},
 	progressbar: {
 		transition: 'none !important',
@@ -180,8 +171,24 @@ const useStyles = makeStyles((theme) => ({
 		pointerEvents: 'none',
 	},
 	paper: {
-		padding: 20,
-		border: `1px solid ${theme.palette.border.divider}`,
+		padding: 10,
+		border: `1px solid ${theme.palette.primary.dark}`,
+		borderRadius: 5,
+		'&.rarity-1': {
+			borderColor: theme.palette.rarities.rare1,
+		},
+		'&.rarity-2': {
+			borderColor: theme.palette.rarities.rare2,
+		},
+		'&.rarity-3': {
+			borderColor: theme.palette.rarities.rare3,
+		},
+		'&.rarity-4': {
+			borderColor: theme.palette.rarities.rare4,
+		},
+		'&.rarity-5': {
+			borderColor: theme.palette.rarities.rare5,
+		},
 	},
 	loader: {
 		height: 'fit-content',
@@ -202,17 +209,14 @@ const lua2json = (lua) =>
 			.replace(/,(\s*)\}/gm, (s, k) => `${k}}`),
 	);
 
-export default (props) => {
+export default connect()((props) => {
 	const metadata = Boolean(props.data?.MetaData)
 		? typeof props.data?.MetaData == 'string'
-			? lua2json(props?.data?.MetaData)
-			: props?.data?.MetaData
+			? lua2json(props.data.MetaData)
+			: props.data.MetaData
 		: Object();
 
 	const classes = useStyles();
-	const dispatch = useDispatch();
-	const soundEffect = useSound();
-	const mode = useSelector((state) => state.app.mode);
 	const hidden = useSelector((state) => state.app.hidden);
 	const hover = useSelector((state) => state.inventory.hover);
 	const hoverOrigin = useSelector((state) => state.inventory.hoverOrigin);
@@ -223,13 +227,14 @@ export default (props) => {
 	);
 	const playerInventory = useSelector((state) => state.inventory.player);
 	const items = useSelector((state) => state.inventory.items);
-
-	const itemData = Boolean(props?.data)
-		? items[props?.data?.Name] ?? fallbackItem
-		: null;
-	const hoverData = Boolean(hover)
-		? items[hover?.Name] ?? fallbackItem
-		: null;
+	const itemData = useSelector((state) => state.inventory.items)[
+		props?.data?.Name
+	];
+	const hoverData = useSelector((state) => state.inventory.items)[
+		hover?.Name
+	];
+	const dispatch = useDispatch();
+	const soundEffect = useSound();
 
 	const calcDurability = () => {
 		if (!Boolean(props?.data?.CreateDate) || !Boolean(itemData?.durability))
@@ -263,48 +268,28 @@ export default (props) => {
 
 	const durability = calcDurability();
 
-	const broken = durability <= 0;
-
 	const [anchorEl, setAnchorEl] = useState(null);
 	const open = Boolean(anchorEl);
 	const tooltipOpen = (event) => {
 		setAnchorEl(event.currentTarget);
 	};
 
-	const tooltipClose = (e, reason) => {
+	const tooltipClose = () => {
 		setAnchorEl(null);
-
-		if (reason == 'escapeKeyDown') {
-			dispatch({
-				type: 'SET_CONTEXT_ITEM',
-				payload: null,
-			});
-			dispatch({
-				type: 'SET_SPLIT_ITEM',
-				payload: null,
-			});
-			closeInventory();
-		}
 	};
 
 	const isUsable = () => {
-		if (mode != 'inventory') return false;
-
 		return (
-			(!Boolean(itemData) || !itemData.invalid) &&
 			!Boolean(inUse) &&
 			props.owner == playerInventory.owner &&
-			itemData.isUsable &&
-			(!Boolean(itemData.durability) ||
-				props.data?.CreateDate + itemData.durability >
+			items[props.data.Name].isUsable &&
+			(!Boolean(items[props.data.Name].durability) ||
+				props.data?.CreateDate + items[props.data.Name].durability >
 					Date.now() / 1000)
 		);
 	};
 
 	const moveItem = () => {
-		if (Boolean(props?.data) && (!Boolean(itemData) || itemData.invalid))
-			return;
-
 		if (
 			hoverOrigin.slot !== props.slot ||
 			hoverOrigin.owner !== props.owner ||
@@ -335,44 +320,6 @@ export default (props) => {
 
 			if (destination == 'secondary' && secondaryInventory.shop) {
 				Nui.send('FrontEndSound', 'DISABLED');
-
-				return;
-			}
-
-			if (
-				destination == 'secondary' &&
-				secondaryInventory.playerShop &&
-				!secondaryInventory.modifyShop
-			) {
-				if (props.canAddToShop()) {
-					props.onAddToShop({
-						...hover,
-						slotFrom: hover.Slot,
-						slotTo: props.slot,
-					});
-				} else {
-					Nui.send('FrontEndSound', 'DISABLED');
-				}
-				return;
-			}
-
-			if (
-				origin != destination &&
-				destination == 'player' &&
-				props.playerWeight + hoverData.weight * hover.Count >
-					props.playerCapacity
-			) {
-				Nui.send('FrontEndSound', 'DISABLED');
-				return;
-			}
-
-			if (
-				origin != destination &&
-				destination == 'secondary' &&
-				props.secondaryWeight + hoverData.weight * hover.Count >
-					props.secondaryCapacity
-			) {
-				Nui.send('FrontEndSound', 'DISABLED');
 				return;
 			}
 
@@ -381,12 +328,13 @@ export default (props) => {
 				origin == 'secondary' &&
 				secondaryInventory.shop &&
 				Boolean(props?.data?.Name) &&
-				hoverOrigin.Name != props?.data?.Name
+				hoverOrigin.Name != props.data.Name
 			) {
 				Nui.send('FrontEndSound', 'DISABLED');
 				return;
 			}
 
+			soundEffect('drag');
 			const payload = {
 				origin: {
 					...hover,
@@ -557,14 +505,6 @@ export default (props) => {
 									payload,
 								});
 							} else {
-								if (
-									secondaryInventory.playerShop &&
-									props?.data?.Price != hover?.Price
-								) {
-									Nui.send('FrontEndSound', 'DISABLED');
-									return;
-								}
-
 								mergeSlot(
 									hoverOrigin.owner,
 									props.owner,
@@ -654,28 +594,6 @@ export default (props) => {
 						(s) => Boolean(s) && s.Slot == props.slot,
 					)[0];
 
-					if (secondaryInventory.playerShop) {
-						if (
-							!Boolean(destSlot) ||
-							destSlot.Count + hover.Count <=
-								items[destSlot.Name].isStackable
-						) {
-							if (props.canAddToShop()) {
-								props.onAddToShop({
-									...hover,
-									slotFrom: hover.Slot,
-									slotTo: props.slot,
-								});
-								Nui.send('FrontEndSound', 'SHOP_ADD');
-							} else {
-								Nui.send('FrontEndSound', 'DISABLED');
-							}
-						} else {
-							Nui.send('FrontEndSound', 'DISABLED');
-						}
-						return;
-					}
-
 					if (Boolean(destSlot)) {
 						if (
 							destSlot.Name == hover.Name &&
@@ -732,10 +650,7 @@ export default (props) => {
 									payload,
 								});
 							}
-						} else if (
-							!secondaryInventory.shop &&
-							!secondaryInventory.playerShop
-						) {
+						} else if (!secondaryInventory.shop) {
 							swapSlot(
 								hoverOrigin.owner,
 								props.owner,
@@ -854,10 +769,7 @@ export default (props) => {
 									payload,
 								});
 							}
-						} else if (
-							!secondaryInventory.shop &&
-							!secondaryInventory.playerShop
-						) {
+						} else if (!secondaryInventory.shop) {
 							swapSlot(
 								hoverOrigin.owner,
 								props.owner,
@@ -918,14 +830,13 @@ export default (props) => {
 				}
 			}
 			setAnchorEl(null);
-			soundEffect('drag');
 		}
 
-		dispatch({
+		props.dispatch({
 			type: 'SET_HOVER',
 			payload: null,
 		});
-		dispatch({
+		props.dispatch({
 			type: 'SET_HOVER_ORIGIN',
 			payload: null,
 		});
@@ -933,7 +844,7 @@ export default (props) => {
 
 	const onMouseDown = (event) => {
 		event.preventDefault();
-		if (props.locked || (Boolean(itemData) && itemData.invalid)) return;
+		if (props.locked) return;
 		if (hoverOrigin == null) {
 			if (!Boolean(props.data?.Name)) return;
 			if (event.button !== 0 && event.button !== 1) return;
@@ -945,11 +856,11 @@ export default (props) => {
 
 			if (event.button === 1) {
 				if (isUsable()) {
-					props.onUse(props.owner, props?.data?.Slot, props.invType);
+					props.onUse(props.owner, props.data.Slot, props.invType);
 					dispatch({
 						type: 'USE_ITEM_PLAYER',
 						payload: {
-							originSlot: props?.data?.Slot,
+							originSlot: props.data.Slot,
 						},
 					});
 				} else {
@@ -958,28 +869,6 @@ export default (props) => {
 				}
 			} else {
 				if (event.shiftKey && showSecondary) {
-					if (
-						playerInventory.owner === props.owner &&
-						playerInventory.invType === props.invType &&
-						props.secondaryWeight +
-							itemData.weight * props?.data?.Count >
-							props.secondaryCapacity
-					) {
-						Nui.send('FrontEndSound', 'DISABLED');
-						return;
-					}
-
-					if (
-						secondaryInventory.owner === props.owner &&
-						secondaryInventory.invType === props.invType &&
-						props.playerWeight +
-							itemData.weight * props?.data?.Count >
-							props.playerCapacity
-					) {
-						Nui.send('FrontEndSound', 'DISABLED');
-						return;
-					}
-
 					let payload = {
 						origin: {
 							...props.data,
@@ -1008,10 +897,17 @@ export default (props) => {
 							.sort((a, b) => a.Slot - b.Slot)
 							.every((slot) => {
 								if (
-									slot.Name == props?.data?.Name &&
+									slot.Name == props.data.Name &&
 									Boolean(itemData.isStackable) &&
-									props?.data?.Count + slot.Count <=
-										itemData.isStackable
+									props.data.Count + slot.Count <=
+										itemData.isStackable &&
+									(itemData.durability == null ||
+										Math.abs(
+											(props.data?.CreateDate ||
+												Date.now() / 1000) -
+												(slot?.CreateDate ||
+													Date.now() / 1000),
+										) <= 3600)
 								) {
 									payload.destination = slot;
 									payload.destSlot = slot.Slot;
@@ -1034,19 +930,6 @@ export default (props) => {
 						}
 
 						if (Boolean(payload.destSlot)) {
-							if (secondaryInventory.playerShop) {
-								if (props.canAddToShop()) {
-									props.onAddToShop({
-										...props?.data,
-										slotFrom: props.slot,
-										slotTo: payload.destSlot,
-									});
-									Nui.send('FrontEndSound', 'SHOP_ADD');
-								} else {
-									Nui.send('FrontEndSound', 'DISABLED');
-								}
-								return;
-							}
 							soundEffect('drag');
 
 							if (
@@ -1063,9 +946,9 @@ export default (props) => {
 									payload.destSlot,
 									props.invType,
 									secondaryInventory.invType,
-									props?.data?.Name,
-									props?.data?.Count,
-									props?.data?.Count,
+									props.data.Name,
+									props.data.Count,
+									props.data.Count,
 									false,
 									secondaryInventory.class,
 									false,
@@ -1087,9 +970,9 @@ export default (props) => {
 									payload.destSlot,
 									props.invType,
 									secondaryInventory.invType,
-									props?.data?.Name,
-									props?.data?.Count,
-									props?.data?.Count,
+									props.data.Name,
+									props.data.Count,
+									props.data.Count,
 									false,
 									secondaryInventory.class,
 									false,
@@ -1114,10 +997,17 @@ export default (props) => {
 							.sort((a, b) => a.Slot - b.Slot)
 							.every((slot) => {
 								if (
-									slot.Name == props?.data?.Name &&
+									slot.Name == props.data.Name &&
 									Boolean(itemData.isStackable) &&
-									props?.data?.Count + slot.Count <=
-										itemData.isStackable
+									props.data.Count + slot.Count <=
+										itemData.isStackable &&
+									(itemData.durability == null ||
+										Math.abs(
+											(props.data?.CreateDate ||
+												Date.now() / 1000) -
+												(slot?.CreateDate ||
+													Date.now() / 1000),
+										) <= 3600)
 								) {
 									payload.destination = slot;
 									payload.destSlot = slot.Slot;
@@ -1156,9 +1046,9 @@ export default (props) => {
 									payload.destSlot,
 									props.invType,
 									1,
-									props?.data?.Name,
-									props?.data?.Count,
-									props?.data?.Count,
+									props.data.Name,
+									props.data.Count,
+									props.data.Count,
 									secondaryInventory.class,
 									false,
 									secondaryInventory.model,
@@ -1180,9 +1070,9 @@ export default (props) => {
 									payload.destSlot,
 									props.invType,
 									1,
-									props?.data?.Name,
-									props?.data?.Count,
-									props?.data?.Count,
+									props.data.Name,
+									props.data.Count,
+									props.data.Count,
 									secondaryInventory.class,
 									false,
 									secondaryInventory.model,
@@ -1204,11 +1094,11 @@ export default (props) => {
 					}
 					setAnchorEl(null);
 				} else if (event.ctrlKey) {
-					dispatch({
+					props.dispatch({
 						type: 'SET_HOVER',
 						payload: {
 							...props.data,
-							Count: Math.ceil(props?.data?.Count / 2),
+							Count: Math.ceil(props.data.Count / 2),
 							slot: props.slot,
 							owner: props.owner,
 							shop: props.shop,
@@ -1216,7 +1106,7 @@ export default (props) => {
 							invType: props.invType,
 						},
 					});
-					dispatch({
+					props.dispatch({
 						type: 'SET_HOVER_ORIGIN',
 						payload: {
 							...props.data,
@@ -1230,7 +1120,7 @@ export default (props) => {
 					});
 					setAnchorEl(null);
 				} else {
-					dispatch({
+					props.dispatch({
 						type: 'SET_HOVER',
 						payload: {
 							...props.data,
@@ -1241,7 +1131,7 @@ export default (props) => {
 							invType: props.invType,
 						},
 					});
-					dispatch({
+					props.dispatch({
 						type: 'SET_HOVER_ORIGIN',
 						payload: {
 							...props.data,
@@ -1300,12 +1190,6 @@ export default (props) => {
 					isQualiDisabled || isWeaponDisabled || isOpenContainer
 						? ' disabled'
 						: ''
-				}${
-					Boolean(broken) &&
-					Boolean(itemData) &&
-					!Boolean(props.locked)
-						? ' broken'
-						: ''
 				}`}
 			>
 				{Boolean(itemData) && (
@@ -1319,58 +1203,40 @@ export default (props) => {
 						}}
 					></div>
 				)}
-				{Boolean(itemData) && props?.data?.Count > 0 && (
-					<div className={classes.count}>{props?.data?.Count}</div>
+				{Boolean(itemData) && props.data.Count > 0 && (
+					<div className={classes.count}>{props.data.Count}</div>
 				)}
-				{props.hotkeys && props.slot <= 5 && !Boolean(props?.data) && (
+				{Boolean(props.equipped) ? (
+					<div className={classes.equipped}>Equipped</div>
+				) : props.hotkeys && props.slot <= 4 ? (
 					<div className={classes.hotkey}>
 						{Boolean(props.equipped) ? 'Equipped' : props.slot}
 					</div>
-				)}
+				) : null}
 				{props.shop &&
 					Boolean(itemData) &&
-					!itemData?.invalid &&
-					(props.free ||
-					(props?.data?.Price ?? itemData.price) == 0 ? (
-						<div className={classes.free}>FREE</div>
+					(props.free ? (
+						<div className={classes.price}>FREE</div>
 					) : (
 						<div className={classes.price}>
-							{FormatThousands(
-								(props?.data?.Price ?? itemData.price) *
-									props?.data?.Count,
-							)}
-							{props?.data?.Count > 1 && (
-								<small>
-									{FormatThousands(
-										props?.data?.Price ?? itemData.price,
-									)}
-								</small>
+							{FormatThousands(itemData.price * props.data.Count)}
+							{props.data.Count > 1 && (
+								<small>{FormatThousands(itemData.price)}</small>
 							)}
 						</div>
-					))}
-				{props.playerShop &&
-					Boolean(itemData) &&
-					!itemData?.invalid &&
-					(props?.data?.Price > 0 ? (
-						<div className={classes.price}>
-							{FormatThousands(
-								props?.data?.Price * props?.data?.Count,
-							)}
-							{props?.data?.Count > 1 && (
-								<small>
-									{FormatThousands(props?.data?.Price)}
-								</small>
-							)}
-						</div>
-					) : (
-						<div className={classes.free}>FREE</div>
 					))}
 				{Boolean(itemData?.durability) &&
 					Boolean(props?.data?.CreateDate) &&
-					(!broken ? (
+					(durability > 0 ? (
 						<LinearProgress
 							className={classes.durability}
-							color="primary"
+							color={
+								durability >= 75
+									? 'success'
+									: durability >= 50
+									? 'warning'
+									: 'error'
+							}
 							classes={{
 								determinate: classes.progressbar,
 								bar: classes.progressbar,
@@ -1379,7 +1245,18 @@ export default (props) => {
 							variant="determinate"
 							value={durability}
 						/>
-					) : null)}
+					) : (
+						<LinearProgress
+							className={classes.durability}
+							classes={{
+								determinate: classes.broken,
+								bar: classes.broken,
+								bar1: classes.broken,
+							}}
+							variant="determinate"
+							value={100}
+						/>
+					))}
 				{Boolean(itemData) && (
 					<div className={classes.label}>
 						{getItemLabel(props.data, itemData)}
@@ -1387,7 +1264,7 @@ export default (props) => {
 				)}
 				{Boolean(props.locked) && (
 					<div className={classes.loader}>
-						<CircularProgress color="primary" size={30} />
+						<CircularProgress color="inherit" size={30} />
 					</div>
 				)}
 			</div>
@@ -1401,30 +1278,16 @@ export default (props) => {
 						open && !Boolean(hover) && !hidden && Boolean(anchorEl)
 					}
 					anchorEl={anchorEl}
-					anchorOrigin={
-						props.secondary
-							? {
-									vertical: 'center',
-									horizontal: 'left',
-							  }
-							: {
-									vertical: 'center',
-									horizontal: 'right',
-							  }
-					}
-					transformOrigin={
-						props.secondary
-							? {
-									vertical: 'center',
-									horizontal: 'right',
-							  }
-							: {
-									vertical: 'center',
-									horizontal: 'left',
-							  }
-					}
+					anchorOrigin={{
+						vertical: 'center',
+						horizontal: 'right',
+					}}
+					transformOrigin={{
+						vertical: 'top',
+						horizontal: 'center',
+					}}
 					onClose={tooltipClose}
-					transitionDuration={100}
+					disableRestoreFocus
 				>
 					<Tooltip
 						isEligible={!isWeaponDisabled}
@@ -1440,4 +1303,4 @@ export default (props) => {
 			)}
 		</div>
 	);
-};
+});

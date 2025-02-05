@@ -21,7 +21,7 @@ end)
 
 AddEventHandler("Polyzone:Enter", function(id, testedPoint, insideZones, data)
 	if GlobalState[string.format("Inventory:%s", id)] ~= nil then
-		LocalPlayer.state:set("_inInvPoly", data, false)
+		LocalPlayer.state:set("_inInvPoly", data, true)
 		_inInvPoly = data
 	end
 end)
@@ -35,7 +35,7 @@ AddEventHandler("Polyzone:Exit", function(id, testedPoint, insideZones, data)
 		then
 			Inventory.Close:All()
 		end
-		LocalPlayer.state:set("_inInvPoly", nil, false)
+		LocalPlayer.state:set("_inInvPoly", nil, true)
 		_inInvPoly = nil
 	end
 end)

@@ -2,14 +2,13 @@ import React from 'react';
 import { useSelector } from 'react-redux';
 import { makeStyles } from '@mui/styles';
 
-import { getItemLabel, itemLabels, itemRarities } from '../Inventory/item';
+import { getItemLabel } from '../Inventory/item';
 
 export default ({ item, count }) => {
 	const items = useSelector((state) => state.inventory.items);
 	const useStyles = makeStyles((theme) => ({
 		body: {
 			minWidth: 250,
-			maxWidth: 400,
 		},
 		itemName: {
 			fontSize: 24,
@@ -17,7 +16,9 @@ export default ({ item, count }) => {
 		},
 		itemType: {
 			fontSize: 16,
-			color: theme.palette.text.main,
+			color: Boolean(theme.palette.rarities[`rare${item.rarity}`])
+				? theme.palette.rarities[`rare${item.rarity}`]
+				: theme.palette.text.main,
 		},
 		usable: {
 			fontSize: 16,
@@ -49,13 +50,59 @@ export default ({ item, count }) => {
 	const classes = useStyles();
 
 	const getTypeLabel = () => {
-		if (Boolean(itemLabels[item.type])) return itemLabels[item.type];
-		else return item.type;
+		switch (item.type) {
+			case 1:
+				return 'Consumable';
+			case 2:
+				return 'Weapon';
+			case 3:
+				return 'Tool';
+			case 4:
+				return 'Crafting Ingredient';
+			case 5:
+				return 'Collectable';
+			case 6:
+				return 'Junk';
+			case 8:
+				return 'Evidence';
+			case 9:
+				return 'Ammunition';
+			case 10:
+				return 'Container';
+			case 11:
+				return 'Gem';
+			case 12:
+				return 'Paraphernalia';
+			case 13:
+				return 'Wearable';
+			case 14:
+				return 'Contraband';
+			case 15:
+				return 'Collectable (Gang Chain)';
+			case 16:
+				return 'Weapon Attachment';
+			case 17:
+				return 'Crafting Schematic';
+			default:
+				return 'Unknown';
+		}
 	};
 
 	const getRarityLabel = () => {
-		if (Boolean(itemRarities[item.rarity])) return itemRarities[item.rarity]
-		else return 'Dogshit';
+		switch (item.rarity) {
+			case 1:
+				return 'Common';
+			case 2:
+				return 'Uncommon';
+			case 3:
+				return 'Rare';
+			case 4:
+				return 'Epic';
+			case 5:
+				return 'Objective';
+			default:
+				return 'Dogshit';
+		}
 	};
 
 	if (!Boolean(item)) return null;
@@ -63,8 +110,8 @@ export default ({ item, count }) => {
 		<div className={classes.body}>
 			<div className={classes.itemName}>{getItemLabel(null, item)}</div>
 			<div className={classes.itemType}>
-				{getTypeLabel()}
-				{Boolean(item.isUsable) && (
+				{`${getRarityLabel()} ${getTypeLabel()}`}
+				{item.isUsable && (
 					<span className={classes.usable}>Usable</span>
 				)}
 			</div>

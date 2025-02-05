@@ -82,15 +82,15 @@ _trashCans = {
 	{
 		id = "pd-trash-5",
 		type = "box",
-		coords = vector3(1835.75, 3683.23, 34.19),
-		width = 3.2,
-		length = 3.75,
+		coords = vector3(1857.22, 3690.52, 29.82),
+		width = 4.2,
+		length = 3.2,
 		options = {
 			name = "pd-trash-5",
-			heading = 30,
+			heading = 298,
 			--debugPoly=true,
-			minZ = 32.19,
-			maxZ = 36.79,
+			minZ = 28.82,
+			maxZ = 31.42,
 		},
 		data = {
 			inventory = {
@@ -120,125 +120,43 @@ _trashCans = {
 		},
 	},
 	{
-		id = "pd-trash-7",
-		type = "box",
-		coords = vector3(-1055.55, -233.63, 39.74),
-		width = 2.8,
-		length = 2.0,
-		options = {
-			name = "pd-trash-7",
-			heading = 25,
-			--debugPoly=true,
-			minZ = 38.74,
-			maxZ = 41.14,
-		},
-		data = {
-			inventory = {
-				invType = 2000,
-				owner = "pd-trash-7",
-			},
-		},
-	},
-	{
 		id = "ems-trash-1",
 		type = "box",
-		coords = vector3(1135.7, -1538.3, 35.03),
-		width = 2.8,
-		length = 1.8,
+		coords = vector3(-430.4, -324.46, 34.91),
+		width = 3.8,
+		length = 3.0,
 		options = {
 			name = "ems-trash-1",
-			heading = 0,
+			heading = 352,
 			--debugPoly=true,
-			minZ = 33.03,
-			maxZ = 37.03,
+			minZ = 33.71,
+			maxZ = 36.31,
 		},
 		data = {
 			inventory = {
-				invType = 2002,
+				invType = 2001,
 				owner = "ems-trash-1",
-			},
-		},
-	},
-	{
-		id = "ems-trash-2",
-		type = "box",
-		coords = vector3(1126.5, -1560.25, 39.5),
-		width = 1.8,
-		length = 2.2,
-		options = {
-			name = "ems-trash-2",
-			heading = 0,
-			--debugPoly=true,
-			minZ = 37.5,
-			maxZ = 41.5,
-		},
-		data = {
-			inventory = {
-				invType = 2002,
-				owner = "ems-trash-2",
 			},
 		},
 	},
 	{
 		id = "ottos-trash-1",
 		type = "box",
-		coords = vector3(931.49, -983.16, 39.5),
-		width = 1.6,
-		length = 2.6,
+		coords = vector3(846.06, -829.03, 26.33),
+		width = 2.0,
+		length = 2.0,
 		options = {
 			name = "ottos-trash-1",
-			heading = 274,
+			heading = 5,
 			--debugPoly=true,
-			minZ = 38.3,
-			maxZ = 40.7,
+			minZ = 25.33,
+			maxZ = 27.93
 		},
 		data = {
 			business = "ottos",
 			inventory = {
 				invType = 2001,
 				owner = "ottos-trash-1",
-			},
-		},
-	},
-	-- prison
-
-	{
-		id = "prison-trash-1",
-		type = "box",
-		coords = vector3(1842.32, 2573.75, 46.01),
-		width = 1.4,
-		length = 1.6,
-		options = {
-			name = "prison-trash-1",
-			heading = 0,
-			--debugPoly=true,
-			minZ = 44.01,
-			maxZ = 47.01,
-		},
-		data = {
-			inventory = {
-				invType = 2003,
-				owner = "prison-trash-1",
-			},
-		},
-	},
-	{
-		id = "prison-trash-2",
-		type = "box",
-		coords = vector3(1772.83, 2571.37, 45.73),
-		width = 1.6,
-		length = 0.8,
-		options = {
-			name = "prison-trash-2",
-			heading = 90,
-			--debugPoly=true,
-			minZ = 44.53,
-			maxZ = 46.73,
-		},
-		data = {
-			inventory = {
-				invType = 2003,
-				owner = "prison-trash-2",
 			},
 		},
 	},

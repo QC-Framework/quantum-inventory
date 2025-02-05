@@ -10,11 +10,11 @@
 ]]
 
 _itemsSource["fishing"] = {
-	{
+    {
 		name = "fishing_rod",
 		label = "Fishing Rod",
-		description = "Catch the Fishies",
-		price = 900,
+        description = "Catch the Fishies",
+		price = 750,
 		isUsable = true,
 		isRemoved = false,
 		isStackable = false,
@@ -23,13 +23,13 @@ _itemsSource["fishing"] = {
 		closeUi = true,
 		metalic = true,
 		weight = 3.5,
-		isDestroyed = true,
-		durability = (60 * 60 * 24 * 30),
+        isDestroyed = true,
+        durability = (60 * 60 * 24 * 30),
 	},
 	{
 		name = "fishing_net",
 		label = "Fishing Net",
-		description = "Catch all the Fishies",
+        description = "Catch all the Fishies",
 		price = 3000,
 		isUsable = true,
 		isRemoved = false,
@@ -39,13 +39,13 @@ _itemsSource["fishing"] = {
 		closeUi = true,
 		metalic = true,
 		weight = 5.0,
-		isDestroyed = true,
-		durability = (60 * 60 * 24 * 60),
+        isDestroyed = true,
+        durability = (60 * 60 * 24 * 60),
 	},
-	{
+    {
 		name = "fishing_bait_lugworm",
 		label = "Lugworm Bait",
-		description = "Marine Fish Bait",
+        description = "Marine Fish Bait",
 		price = 10,
 		isUsable = false,
 		isRemoved = false,
@@ -57,10 +57,10 @@ _itemsSource["fishing"] = {
 		weight = 0.1,
 		durability = (60 * 60 * 24 * 60),
 	},
-	{
+    {
 		name = "fishing_bait_worm",
 		label = "Worm Bait",
-		description = "Fresh Water Fish Bait",
+        description = "Fresh Water Fish Bait",
 		price = 15,
 		isUsable = false,
 		isRemoved = false,
@@ -72,11 +72,11 @@ _itemsSource["fishing"] = {
 		weight = 0.1,
 		durability = (60 * 60 * 24 * 60),
 	},
-	{
+    {
 		name = "fishing_rainbowtrout",
 		label = "Rainbow Trout",
-		description = "A fish found in fresh water",
-		price = 60,
+        description = "A fish found in fresh water",
+		price = 150,
 		isUsable = false,
 		isRemoved = false,
 		isStackable = 25,
@@ -87,11 +87,11 @@ _itemsSource["fishing"] = {
 		weight = 2.0,
 		durability = (60 * 60 * 24 * 60),
 	},
-	{
+    {
 		name = "fishing_chub",
 		label = "Chub",
-		description = "A fish found in fresh water",
-		price = 40,
+        description = "A fish found in fresh water",
+		price = 75,
 		isUsable = false,
 		isRemoved = false,
 		isStackable = 25,
@@ -102,11 +102,11 @@ _itemsSource["fishing"] = {
 		weight = 1.5,
 		durability = (60 * 60 * 24 * 60),
 	},
-	{
+    {
 		name = "fishing_grasscarp",
 		label = "Grass Carp",
-		description = "A fish found in fresh water",
-		price = 40,
+        description = "A fish found in fresh water",
+		price = 75,
 		isUsable = false,
 		isRemoved = false,
 		isStackable = 25,
@@ -117,11 +117,11 @@ _itemsSource["fishing"] = {
 		weight = 1.0,
 		durability = (60 * 60 * 24 * 60),
 	},
-	{
+    {
 		name = "fishing_kelp",
 		label = "Kelp Fish",
-		description = "A fish found in the ocean",
-		price = 50,
+        description = "A fish found in the ocean",
+		price = 90,
 		isUsable = false,
 		isRemoved = false,
 		isStackable = 25,
@@ -132,11 +132,11 @@ _itemsSource["fishing"] = {
 		weight = 1.5,
 		durability = (60 * 60 * 24 * 60),
 	},
-	{
+    {
 		name = "fishing_bass",
 		label = "Bass Fish",
-		description = "A fish found in the ocean",
-		price = 70,
+        description = "A fish found in the ocean",
+		price = 120,
 		isUsable = false,
 		isRemoved = false,
 		isStackable = 25,
@@ -147,11 +147,11 @@ _itemsSource["fishing"] = {
 		weight = 1.5,
 		durability = (60 * 60 * 24 * 60),
 	},
-	{
+    {
 		name = "fishing_rockfish",
 		label = "Rock Fish",
-		description = "A fish found in the ocean",
-		price = 70,
+        description = "A fish found in the ocean",
+		price = 150,
 		isUsable = false,
 		isRemoved = false,
 		isStackable = 25,
@@ -162,10 +162,10 @@ _itemsSource["fishing"] = {
 		weight = 1.0,
 		durability = (60 * 60 * 24 * 60),
 	},
-	{
+    {
 		name = "fishing_lobster",
 		label = "Lobster",
-		description = "It's a lobster",
+        description = "It's a lobster",
 		price = 0,
 		isUsable = false,
 		isRemoved = false,
@@ -177,7 +177,7 @@ _itemsSource["fishing"] = {
 		weight = 0.75,
 		durability = (60 * 60 * 24 * 60),
 	},
-	{
+    {
 		name = "fishing_tuna",
 		label = "Tuna",
 		price = 0,
@@ -191,7 +191,7 @@ _itemsSource["fishing"] = {
 		weight = 2.5,
 		durability = (60 * 60 * 24 * 60),
 	},
-	{
+    {
 		name = "fishing_bluefintuna",
 		label = "Bluefin Tuna",
 		price = 0,
@@ -205,7 +205,7 @@ _itemsSource["fishing"] = {
 		weight = 3.5,
 		durability = (60 * 60 * 24 * 60),
 	},
-	{
+    {
 		name = "fishing_whale",
 		label = "A Whale",
 		price = 0,
@@ -218,7 +218,7 @@ _itemsSource["fishing"] = {
 		metalic = false,
 		weight = 100.0,
 	},
-	{
+    {
 		name = "fishing_dolphin",
 		label = "A Dolphin",
 		price = 0,
@@ -231,9 +231,9 @@ _itemsSource["fishing"] = {
 		metalic = false,
 		weight = 50.0,
 	},
-	{
+    {
 		name = "fishing_shark",
-		label = "A Shark",
+		label = "A Dolphin",
 		price = 0,
 		isUsable = false,
 		isRemoved = false,
@@ -248,8 +248,8 @@ _itemsSource["fishing"] = {
 	{
 		name = "fishing_boot",
 		label = "Soggy Boot",
-		description = "I think someone is missing a boot",
-		price = 250,
+        description = "I think someone is missing a boot",
+		price = 500,
 		isUsable = true,
 		isRemoved = false,
 		isStackable = 2,
@@ -262,8 +262,8 @@ _itemsSource["fishing"] = {
 	{
 		name = "fishing_bike",
 		label = "Rusty Bicycle",
-		description = "I don't think this is worth anything",
-		price = 250,
+        description = "I don't think this is worth anything",
+		price = 500,
 		isUsable = false,
 		isRemoved = false,
 		isStackable = false,
@@ -276,8 +276,8 @@ _itemsSource["fishing"] = {
 	{
 		name = "fishing_chest",
 		label = "Old Chest",
-		description = "Maybe There is Treasure!",
-		price = 1500,
+        description = "Maybe There is Treasure!",
+		price = 2500,
 		isUsable = true,
 		isRemoved = false,
 		isStackable = false,
@@ -291,8 +291,8 @@ _itemsSource["fishing"] = {
 	{
 		name = "fishing_oil",
 		label = "Fish Oil",
-		description = "Eww",
-		price = 175,
+        description = "Eww",
+		price = 250,
 		isUsable = false,
 		isRemoved = false,
 		isStackable = false,
@@ -305,7 +305,7 @@ _itemsSource["fishing"] = {
 	{
 		name = "fishing_seaweed",
 		label = "Seaweed",
-		description = "A salty snack",
+        description = "A salty snack",
 		price = 30,
 		isUsable = false,
 		isRemoved = false,

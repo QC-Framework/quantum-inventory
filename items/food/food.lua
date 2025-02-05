@@ -17,7 +17,6 @@ _itemsSource["food_misc"] = {
 			},
 			Remove = {
 				PLAYER_HUNGER = 0,
-				PLAYER_DRUNK = 20,
 			},
 		},
 		animConfig = {
@@ -151,9 +150,9 @@ _itemsSource["food_misc"] = {
 		durability = (60 * 60 * 24 * 5),
 		energyModifier = {
 			modifier = 1.1,
-			duration = 18, -- not seconds?
-			cooldown = 80, -- seconds
-		},
+			duration = 3, -- not seconds?
+			cooldown = 80 -- seconds
+		}
 	},
 	{
 		name = "blueberry_muffin",
@@ -303,9 +302,9 @@ _itemsSource["food_misc"] = {
 		},
 		energyModifier = {
 			modifier = 1.15,
-			duration = 12, -- not seconds?
-			cooldown = 60, -- seconds
-		},
+			duration = 4, -- not seconds?
+			cooldown = 60 -- seconds
+		}
 	},
 	{
 		name = "coffee",
@@ -346,7 +345,7 @@ _itemsSource["food_misc"] = {
 			modifier = 70,
 			min = 2,
 			max = 4,
-		},
+		}
 	},
 	{
 		name = "salad",
@@ -421,7 +420,7 @@ _itemsSource["food_misc"] = {
 		},
 		energyModifier = {
 			modifier = 1.1,
-			duration = 18, -- not seconds?
+			duration = 6, -- not seconds?
 			cooldown = 60, -- seconds
 			skipScreenEffects = true,
 		},
@@ -465,7 +464,7 @@ _itemsSource["food_misc"] = {
 		},
 		energyModifier = {
 			modifier = 1.1,
-			duration = 18, -- not seconds?
+			duration = 5, -- not seconds?
 			cooldown = 60, -- seconds
 			skipScreenEffects = true,
 		},
@@ -509,7 +508,7 @@ _itemsSource["food_misc"] = {
 		},
 		energyModifier = {
 			modifier = 1.1,
-			duration = 18, -- not seconds?
+			duration = 5, -- not seconds?
 			cooldown = 60, -- seconds
 			skipScreenEffects = true,
 		},
@@ -556,45 +555,7 @@ _itemsSource["food_misc"] = {
 		isDestroyed = true,
 		durability = (60 * 60 * 24 * 5),
 	},
-	{
-		name = "gingerale",
-		label = "Gingerale",
-		price = 25,
-		isUsable = true,
-		isRemoved = true,
-		isStackable = 15,
-		type = 1,
-		rarity = 1,
-		closeUi = true,
-		weight = 0.25,
-		statusChange = {
-			Add = {
-				PLAYER_THIRST = 35,
-			},
-			Remove = {
-				PLAYER_HUNGER = 0,
-			},
-		},
-		animConfig = {
-			anim = "soda",
-			time = 15000,
-			pbConfig = {
-				label = "Drinking",
-				useWhileDead = false,
-				canCancel = true,
-				vehicle = false,
-				disarm = true,
-				ignoreModifier = true,
-				disableMovement = false,
-				disableCarMovement = false,
-				disableMouse = false,
-				disableCombat = true,
-			},
-		},
-		metalic = false,
-		isDestroyed = true,
-		durability = (60 * 60 * 24 * 5),
-	},
+
 	{
 		name = "chips",
 		label = "Chips",
@@ -704,163 +665,10 @@ _itemsSource["food_misc"] = {
 		durability = (60 * 60 * 24 * 5),
 	},
 	{
-		name = "cheeseburger",
-		label = "Cheese Burger",
-		price = 20,
-		isUsable = true,
-		isRemoved = true,
-		isStackable = 15,
-		type = 1,
-		rarity = 1,
-		closeUi = true,
-		weight = 0.25,
-		isDestroyed = true,
-		durability = (60 * 60 * 24 * 5),
-		statusChange = {
-			Add = {
-				PLAYER_HUNGER = 15,
-			},
-			Remove = {
-				PLAYER_THIRST = 3,
-			},
-		},
-		animConfig = {
-			anim = "eat",
-			time = 12000,
-			pbConfig = {
-				label = "Eating",
-				useWhileDead = false,
-				canCancel = true,
-				vehicle = false,
-				disarm = true,
-				ignoreModifier = true,
-				disableMovement = false,
-				disableCarMovement = false,
-				disableMouse = false,
-				disableCombat = true,
-			},
-		},
-		metalic = false,
-		isDestroyed = true,
-	},
-	{
-		name = "vension_steak",
-		label = "Venison Steak",
-		price = 150,
-		isUsable = true,
-		isRemoved = true,
-		isStackable = 15,
-		type = 1,
-		rarity = 1,
-		closeUi = true,
-		weight = 0.25,
-		statusChange = {
-			Add = {
-				PLAYER_HUNGER = 50,
-			},
-		},
-		animConfig = {
-			anim = "eat",
-			time = 15000,
-			pbConfig = {
-				label = "Eating",
-				useWhileDead = false,
-				canCancel = true,
-				vehicle = false,
-				disarm = true,
-				ignoreModifier = true,
-				disableMovement = false,
-				disableCarMovement = false,
-				disableMouse = false,
-				disableCombat = true,
-			},
-		},
-		metalic = false,
-		isDestroyed = true,
-		durability = (60 * 60 * 24 * 5),
-	},
-	{
-		name = "fries",
-		label = "Fries",
-		price = 15,
-		isUsable = true,
-		isRemoved = true,
-		isStackable = 15,
-		type = 1,
-		rarity = 1,
-		closeUi = true,
-		weight = 0.25,
-		isDestroyed = true,
-		durability = (60 * 60 * 24 * 5),
-		statusChange = {
-			Add = {
-				PLAYER_HUNGER = 30,
-			},
-		},
-		animConfig = {
-			anim = "bshot_fries",
-			time = 10000,
-			pbConfig = {
-				label = "Eating",
-				useWhileDead = false,
-				canCancel = true,
-				vehicle = false,
-				disarm = true,
-				ignoreModifier = true,
-				disableMovement = false,
-				disableCarMovement = false,
-				disableMouse = false,
-				disableCombat = true,
-			},
-		},
-		metalic = false,
-		isDestroyed = true,
-	},
-	{
-		name = "popcorn",
-		label = "Popcorn",
-		price = 25,
-		isUsable = true,
-		isRemoved = true,
-		isStackable = 15,
-		type = 1,
-		rarity = 1,
-		closeUi = true,
-		weight = 0.25,
-		isDestroyed = true,
-		durability = (60 * 60 * 24 * 5),
-		statusChange = {
-			Add = {
-				PLAYER_HUNGER = 20,
-			},
-			Remove = {
-				PLAYER_THIRST = 3,
-			},
-		},
-		animConfig = {
-			anim = "popcorn",
-			time = 12000,
-			pbConfig = {
-				label = "Eating",
-				useWhileDead = false,
-				canCancel = true,
-				vehicle = false,
-				disarm = true,
-				ignoreModifier = true,
-				disableMovement = false,
-				disableCarMovement = false,
-				disableMouse = false,
-				disableCombat = true,
-			},
-		},
-		metalic = false,
-		isDestroyed = true,
-	},
-	{
 		name = "hotdog",
 		label = "Hotdog",
 		description = "A dog but very hot",
-		price = 20,
+		price = 0,
 		isUsable = true,
 		isRemoved = true,
 		isStackable = 15,
@@ -870,14 +678,11 @@ _itemsSource["food_misc"] = {
 		weight = 0.25,
 		statusChange = {
 			Add = {
-				PLAYER_HUNGER = 10,
-			},
-			Remove = {
-				PLAYER_THIRST = 3,
+				PLAYER_HUNGER = 100,
 			},
 		},
 		animConfig = {
-			anim = "hotdog",
+			anim = "eat",
 			time = 18000,
 			pbConfig = {
 				label = "Eating",

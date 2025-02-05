@@ -1,11 +1,8 @@
 _recipes = {}
 _cooldowns = {}
 
-_schematics = _schematics or {}
-_publicSchemData = {}
-
-_benchSchems = {}
-_playerSchems = {}
+_schematics = {}
+_knownRecipes = {}
 
 AddEventHandler("Proxy:Shared:RegisterReady", function()
 	exports["quantum-base"]:RegisterComponent("Crafting", CRAFTING)
@@ -38,7 +35,7 @@ function RemoveCraftingCooldown(source, bench, id)
 	local plyr = Fetch:Source(source)
 	if plyr ~= nil then
 		if plyr.Permissions:IsAdmin() then
-			local char = Fetch:CharacterSource(source)
+			local char = plyr:GetData("Character")
 			if char ~= nil then
 				if _cooldowns[bench] ~= nil then
 					Logger:Info("Crafting", string.format("%s %s (%s) Reset Cooldown %s on bench %s", char:GetData("First"), char:GetData("Last"), char:GetData("SID"), id, bench))
@@ -57,7 +54,7 @@ function RemoveCraftingCooldown(source, bench, id)
 end
 
 function LoadCraftingCooldowns()
-	Citizen.CreateThread(function()
+	CreateThread(function()
 		local cds = MySQL.query.await('SELECT * FROM crafting_cooldowns WHERE expires > ?', { os.time() })
 
 		for k, v in ipairs(cds or {}) do
@@ -72,7 +69,7 @@ function CleanupExpiredCooldowns()
 	if _cdThreading then return end
 	_cdThreading = true
 
-	Citizen.CreateThread(function()
+	CreateThread(function()
 		while _cdThreading do
 			for k, v in pairs(_cooldowns) do
 				for k2, v2 in pairs(v) do
@@ -87,7 +84,7 @@ function CleanupExpiredCooldowns()
 					Logger:Info("Inventory", string.format("Remove ^2%s^7 Expired Crafting Cooldowns", d.affectedRows))
 				end
 			end)
-			Citizen.Wait(60000)
+			Wait(60000)
 		end
 	end)
 end
@@ -100,9 +97,9 @@ function InsertCooldown(bench, key, expires)
 end
 
 CRAFTING = {
-	RegisterBench = function(self, id, label, targeting, location, restrictions, recipes, canUseSchematics, isPubSchemTable)
+	RegisterBench = function(self, id, label, targeting, location, restrictions, recipes, canUseSchematics)
 		while not itemsLoaded do
-			Citizen.Wait(10)
+			Wait(10)
 		end
 
 		_cooldowns[id] = _cooldowns[id] or {}
@@ -114,63 +111,39 @@ CRAFTING = {
 			restrictions = restrictions,
 			recipes = {},
 			canUseSchematics = canUseSchematics or false,
-			isPubSchemTable = isPubSchemTable or false,
 		}
 
 		for k, v in pairs(recipes) do
 			if itemsDatabase[v.result.name] ~= nil then
-				v.id = string.format("%s", k)
-				table.insert(_types[id].recipes, v)
+				v.id = k
+				Crafting:AddRecipeToBench(id, k, v)
 			end
 		end
 
-		if not isPubSchemTable then
-			local t = MySQL.rawExecute.await('SELECT schematic FROM bench_schematics WHERE bench = ?', {
-				id,
-			})
-
-			for k, v in ipairs(t) do
-				if itemsDatabase[v.schematic]?.schematic ~= nil and _schematics[itemsDatabase[v.schematic]?.schematic] ~= nil then
-					local f = table.copy(_schematics[itemsDatabase[v.schematic].schematic])
-					f.id = v.schematic
-					table.insert(_types[id].recipes, f)
+		if _knownRecipes[id] ~= nil then
+			for k, v in pairs(_knownRecipes[id]) do
+				if itemsDatabase[v.result.name] ~= nil then
+					v.id = k
+					Crafting:AddRecipeToBench(id, k, v)
 				end
 			end
 		end
 	end,
+	AddRecipeToBench = function(self, bench, id, recipe)
+		if _types[bench] == nil then
+			return
+		end
+		recipe.id = id
+		_types[bench].recipes[id] = recipe
+	end,
 	Craft = {
-		Start = function(self, crafterSource, crafter, bench, schemId, qty)
-			if _types[bench] == nil then
-				return { error = true, message = "Invalid Bench" }
-			end
-
-			local recipies = _types[bench].recipes
-			if _types[bench].isPubSchemTable then
-				local t = GetCharacterPublicSchems(crafter, false)
-				recipies = {}
-				for k, v in ipairs(t[_types[bench].isPubSchemTable] or {}) do
-					if itemsDatabase[v]?.schematic ~= nil and _schematics[itemsDatabase[v]?.schematic] ~= nil then
-						local f = table.copy(_schematics[itemsDatabase[v]?.schematic])
-						f.id = v
-						table.insert(recipies, f)
-					end
-				end
-			end
-
-			local recipe = nil
-			for k, v in pairs(recipies or {}) do
-				if v.id == schemId then
-					recipe = v
-					break
-				end
-			end
-
-			if recipe == nil then
-				return { error = true, message = "Invalid Recipe" }
+		Start = function(self, crafter, bench, result, qty)
+			if _inProg[crafter] ~= nil or _types[bench] == nil or _types[bench].recipes[result] == nil then
+				return { error = true, message = "Already Crafting" }
 			end
 
 			local reagents = {}
-			for k, v in ipairs(recipe.items) do
+			for k, v in ipairs(_types[bench].recipes[result].items) do
 				if reagents[v.name] ~= nil then
 					reagents[v.name] = reagents[v.name] + (v.count * qty)
 				else
@@ -178,269 +151,257 @@ CRAFTING = {
 				end
 			end
 
-			local makingItem = recipe.result
+			local makingItem = _types[bench].recipes[result].result
 			local reqSlotPerItem = itemsDatabase[makingItem.name].isStackable or 1
 			local totalRequiredSlots = math.ceil((makingItem.count * qty) / reqSlotPerItem)
-			local freeSlots = INVENTORY:GetFreeSlotNumbers(crafter, 1)
+			local freeSlots = Inventory:GetFreeSlotNumbers(crafter, 1)
 			if #freeSlots < totalRequiredSlots then
 				return { error = true, message = "Inventory Full" }
 			end
 
 			for k, v in pairs(reagents) do
-				if not INVENTORY.Items:Has(crafter, 1, k, v) then
+				if not Inventory.Items:Has(crafter, 1, k, v) then
 					return { error = true, message = "Missing Ingredients" }
 				end
 			end
 
-			if _types[bench].isPubSchemTable then
-				local bId = string.format("%s:%s", bench, crafter)
-				if _cooldowns[bId] and _cooldowns[bId][schemId] ~= nil and _cooldowns[bId][schemId] > (os.time() * 1000) then
-					return { error = true, message = "Recipe On Cooldown" }
-				end
-			else
-				if _cooldowns[bench][schemId] ~= nil and _cooldowns[bench][schemId] > (os.time() * 1000) then
-					return { error = true, message = "Recipe On Cooldown" }
+			if _cooldowns[bench][result] ~= nil and _cooldowns[bench][result] > (os.time() * 1000) then
+				return { error = true, message = "Recipe On Cooldown" }
+			end
+
+			_inProg[crafter] = {
+				bench = bench,
+				result = result,
+				qty = tonumber(qty),
+			}
+
+			local t = deepcopy(_types[bench].recipes[result])
+			t.time = t.time * qty
+
+			return {
+				error = false,
+				data = t,
+				string = _types[bench].targeting?.actionString or "Crafting",
+			}
+		end,
+		End = function(self, crafter)
+			if _inProg[crafter] == nil or _types[_inProg[crafter].bench] == nil then
+				return false
+			end
+
+			local recipe = _types[_inProg[crafter].bench].recipes[_inProg[crafter].result]
+
+			local reagents = {}
+			for k, v in ipairs(recipe.items) do
+				if reagents[v.name] ~= nil then
+					reagents[v.name] = reagents[v.name] + (v.count * _inProg[crafter].qty)
+				else
+					reagents[v.name] = v.count * _inProg[crafter].qty
 				end
 			end
 
+			local reqSlotPerItem = itemsDatabase[recipe.result.name].isStackable or 1
+			local totalRequiredSlots = math.ceil((recipe.result.count * _inProg[crafter].qty) / reqSlotPerItem)
+			local freeSlots = Inventory:GetFreeSlotNumbers(crafter, 1)
+			if #freeSlots < totalRequiredSlots then
+				return false
+			end
+
 			for k, v in pairs(reagents) do
-				if not INVENTORY.Items:Remove(crafter, 1, k, v, true) then
+				if not Inventory.Items:Remove(crafter, 1, k, v, true) then
 					return false
 				end
 			end
 
 			local p = promise.new()
 
-			Citizen.CreateThread(function()
-				local meta = {}
-				if itemsDatabase[recipe.result.name].type == 2 and not itemsDatabase[recipe.result.name].noSerial then
-					meta.Scratched = true
-				end
-	
-				if recipe.cooldown then
-					if _types[bench].isPubSchemTable then
-						InsertCooldown(string.format("%s:%s", bench, crafter), recipe.id, (os.time() * 1000) + recipe.cooldown)
-					else
-						InsertCooldown(bench, recipe.id, (os.time() * 1000) + recipe.cooldown)
-					end
-				end
-	
-				if INVENTORY:AddItem(crafter, recipe.result.name, recipe.result.count * qty, meta, 1) then
-					local inv = getInventory(crafterSource, crafter, 1)
-					if _types[bench].isPubSchemTable then
-						local bId = string.format("%s:%s", bench, crafter)
-						p:resolve({
-							inventory = inv,
-							cooldowns = _cooldowns[bId],
-						})
-					else
-						p:resolve({
-							inventory = inv,
-							cooldowns = _cooldowns[bench],
-						})
-					end
-				else
-					p:resolve(nil)
-				end
-			end)
+			local meta = {}
+			if itemsDatabase[recipe.result.name].type == 2 and not itemsDatabase[recipe.result.name].noSerial then
+				meta.Scratched = true
+			end
 
+			if recipe.cooldown then
+				InsertCooldown(_inProg[crafter].bench, recipe.id, (os.time() * 1000) + recipe.cooldown)
+			end
+
+			if Inventory:AddItem(crafter, recipe.result.name, recipe.result.count * _inProg[crafter].qty, meta, 1) then
+				p:resolve(_inProg[crafter].bench)
+			else
+				p:resolve(nil)
+			end
+			_inProg[crafter] = nil
 			return Citizen.Await(p)
+		end,
+		Cancel = function(self, crafter)
+			if _inProg[crafter] == nil then
+				return false
+			end
+			_inProg[crafter] = nil
+			return true
 		end,
 	},
 	Schematics = {
-		Has = function(self, bench, item, stateID)
+		Has = function(self, bench, item)
 			if _types[bench] ~= nil then
-				if _types[bench].isPubSchemTable then
-					if _playerSchems[stateID] ~= nil and _playerSchems[stateID][bench] ~= nil then
-						for k, v in ipairs(_playerSchems[stateID][bench]) do
-							if v == item then
-								return true
-							end
-						end
-					end
-				else
-					if _benchSchems[bench] ~= nil then
-						for k, v in ipairs(_benchSchems[bench]) do
-							if v == item then
-								return true
-							end
-						end
+				for k, v in ipairs(_types[bench].recipes) do
+					if v.schematic == item then
+						return true
 					end
 				end
 			end
+
 			return false
 		end,
-		HasAny = function(self, stateID, item)
-			return MySQL.scalar.await('SELECT COUNT(*) AS count FROM character_schematics c WHERE c.sid = ? AND c.schematic = ?', {
-				stateID,
-				item,
-			}) > 0
-		end,
-		Add = function(self, bench, item, stateID)
-			if _types[bench] ~= nil and _schematics[itemsDatabase[item].schematic] ~= nil then
-				if not Crafting.Schematics:Has(bench, item, stateID) then
-					if _types[bench].isPubSchemTable then
-						if _playerSchems[stateID] == nil then
-							GetCharacterPublicSchems(stateID, true)
-						end
+		Add = function(self, bench, item)
+			if _types[bench] ~= nil and _schematics[item] ~= nil then
+				if not Crafting.Schematics:Has(bench, item) then
+					Database.Game:insertOne({
+						collection = "schematics",
+						document = {
+							bench = bench,
+							item = item,
+						},
+					})
 
-						MySQL.insert.await('INSERT INTO character_schematics (sid, bench, schematic) VALUES(?, ?, ?)', {
-							stateID,
-							_types[bench].isPubSchemTable,
-							item
-						})
-
-						_playerSchems[stateID][_types[bench].isPubSchemTable] = _playerSchems[stateID][_types[bench].isPubSchemTable] or {}
-						table.insert(_playerSchems[stateID][_types[bench].isPubSchemTable], item)
-					else
-						MySQL.insert.await('INSERT INTO bench_schematics (bench, schematic) VALUES(?, ?)', {
-							bench,
-							item
-						})
-
-						local f = table.copy(_schematics[itemsDatabase[item].schematic])
-						f.id = item
-						table.insert(_types[bench].recipes, f)
-					end
+					local f = table.copy(_schematics[item])
+					f.schematic = item
+					Crafting:AddRecipeToBench(bench, item, f)
 				end
 			end
 
 			return false
 		end,
 	},
-	GetBench = function(self, source, benchId)
-		local char = Fetch:CharacterSource(source)
-		if char ~= nil then
-			local bench = _types[benchId]
-			if
-				bench ~= nil
-				and char ~= nil
-				and (
-					not bench.restrictions
-					or bench.restrictions.shared
-					or (bench.restrictions.interior ~= nil and bench.restrictions.interior == GlobalState[string.format(
-						"%s:House",
-						source
-					)])
-					or (bench.restrictions.char ~= nil and bench.restrictions.char == char:GetData("SID"))
-					or (bench.restrictions.job ~= nil and Jobs.Permissions:HasJob(
-						source,
-						bench.restrictions.job.id,
-						bench.restrictions.job.workplace,
-						bench.restrictions.job.grade,
-						false,
-						bench.restrictions.job.reqDuty,
-						bench.restrictions.job.permissionKey or "JOB_CRAFTING"
-					))
-					or (
-						bench.restrictions.rep ~= nil
-						and Reputation:GetLevel(source, bench.restrictions.rep.id) >= bench.restrictions.rep.level
-					)
-				)
-			then
-				local recipies = bench.recipes
-				local cooldowns = _cooldowns[benchId]
-	
-				if bench.isPubSchemTable then
-					cooldowns = _cooldowns[string.format("%s:%s", benchId, char:GetData("SID"))]
-
-					local all = GetCharacterPublicSchems(char:GetData("SID"), false)
-					recipies = {}
-					for k, v in ipairs(all[bench.isPubSchemTable] or {}) do
-						if itemsDatabase[v]?.schematic ~= nil and _schematics[itemsDatabase[v].schematic] ~= nil then
-							local t = deepcopy(_schematics[itemsDatabase[v].schematic])
-							t.id = v
-							table.insert(recipies, t)
-						end
-					end
-				end
-
-				return {
-					recipes = recipies,
-					cooldowns = cooldowns,
-					canUseSchematics = bench.canUseSchematics,
-				}
-			else
-				return nil
-			end
-		else
-			return nil
-		end
-	end,
 }
 
 function RegisterCraftingCallbacks()
-	Callbacks:RegisterServerCallback("Crafting:Craft", function(source, data, cb)
-		local char = Fetch:CharacterSource(source)
-		if char ~= nil then
-			cb(Crafting.Craft:Start(source, char:GetData("SID"), data.bench, data.result, data.qty))
+	Callbacks:RegisterServerCallback("Crafting:GetBenchDetails", function(source, data, cb)
+		local char = Fetch:Source(source):GetData("Character")
+
+		local bench = _types[data]
+		if
+			bench ~= nil
+			and (
+				not bench.restrictions
+				or bench.restrictions.shared
+				or (bench.restrictions.interior ~= nil and bench.restrictions.interior == GlobalState[string.format(
+					"%s:House",
+					source
+				)])
+				or (bench.restrictions.char ~= nil and bench.restrictions.char == char:GetData("SID"))
+				or (bench.restrictions.job ~= nil and Jobs.Permissions:HasJob(
+					source,
+					bench.restrictions.job.id,
+					bench.restrictions.job.workplace,
+					bench.restrictions.job.grade,
+					false,
+					bench.restrictions.job.reqDuty,
+					bench.restrictions.job.permissionKey or "JOB_CRAFTING"
+				))
+				or (
+					bench.restrictions.rep ~= nil
+					and Reputation:GetLevel(source, bench.restrictions.rep.id) >= bench.restrictions.rep.level
+				)
+			)
+		then
+			cb({
+				recipes = bench.recipes,
+				cooldowns = _cooldowns[data],
+				myCounts = Inventory.Items:GetCounts(char:GetData("SID"), 1),
+				string = bench.targeting?.actionString or "Crafting",
+				canUseSchematics = bench.canUseSchematics,
+			})
 		else
 			cb(nil)
 		end
 	end)
 
+	Callbacks:RegisterServerCallback("Crafting:Craft", function(source, data, cb)
+		local char = Fetch:Source(source):GetData("Character")
+		cb(Crafting.Craft:Start(char:GetData("SID"), data.bench, data.result, data.qty))
+	end)
+
+	Callbacks:RegisterServerCallback("Crafting:End", function(source, data, cb)
+		local char = Fetch:Source(source):GetData("Character")
+		cb(Crafting.Craft:End(char:GetData("SID")))
+	end)
+
+	Callbacks:RegisterServerCallback("Crafting:Cancel", function(source, data, cb)
+		local char = Fetch:Source(source):GetData("Character")
+		cb(Crafting.Craft:Cancel(char:GetData("SID")))
+	end)
+
 	Callbacks:RegisterServerCallback("Crafting:GetSchematics", function(source, data, cb)
-		local char = Fetch:CharacterSource(source)
-		if char ~= nil then
-			local schems = INVENTORY.Items:GetAllOfType(char:GetData("SID"), 1, 17)
-			local list = {}
-			for k, v in pairs(schems) do
-				local itemData = INVENTORY.Items:GetData(v.Name)
-				if itemData?.schematic ~= nil and _schematics[itemData.schematic] ~= nil and not Crafting.Schematics:Has(data.id, itemData.schematic, char:GetData("SID")) then
-					local result = INVENTORY.Items:GetData(_schematics[itemData.schematic].result.name)
-					if result ~= nil then
+		local plyr = Fetch:Source(source)
+		if plyr ~= nil then
+			local char = plyr:GetData("Character")
+			if char ~= nil then
+				local schems = Inventory.Items:GetAllOfType(char:GetData("SID"), 1, 17)
+
+				local list = {}
+				for k, v in ipairs(schems) do
+					local itemData = Inventory.Items:GetData(v.Name)
+					if itemData?.schematic ~= nil and not Crafting.Schematics:Has(data.id, v.Name) then
+						local result = Inventory.Items:GetData(itemData.schematic.result.name)
 						table.insert(list, {
 							label = itemData.label,
-							description = string.format("Makes: x%s %s", _schematics[itemData.schematic].result.count, result.label),
+							description = string.format("Makes: x%s %s", itemData.schematic.result.count, result.label),
 							event = "Crafting:Client:UseSchematic",
 							data = v,
 						})
 					end
 				end
-			end
 
-			cb(list)
+				cb(list)
+			else
+				cb(false)
+			end
 		else
 			cb(false)
 		end
 	end)
 
 	Callbacks:RegisterServerCallback("Crafting:UseSchematic", function(source, data, cb)
-		local char = Fetch:CharacterSource(source)
-		if char ~= nil then
-			if INVENTORY.Items:HasId(char:GetData("SID"), 1, data.schematic.id) then
-				local bench = _types[data.bench]
-				if bench ~= nil then
-					if
-						bench.canUseSchematics
-						and (
-							not bench.restrictions
-							or bench.restrictions.shared
-							or (bench.restrictions.interior ~= nil and bench.restrictions.interior == GlobalState[string.format(
-								"%s:House",
-								source
-							)])
-							or (bench.restrictions.char ~= nil and bench.restrictions.char == char:GetData("SID"))
-							or (bench.restrictions.job ~= nil and Jobs.Permissions:HasJob(
-								source,
-								bench.restrictions.job.id,
-								bench.restrictions.job.workplace,
-								bench.restrictions.job.grade,
-								false,
-								bench.restrictions.job.reqDuty,
-								bench.restrictions.job.permissionKey or "JOB_CRAFTING"
-							))
-							or (
-								bench.restrictions.rep ~= nil
-								and Reputation:GetLevel(source, bench.restrictions.rep.id)
-									>= bench.restrictions.rep.level
+		local plyr = Fetch:Source(source)
+		if plyr ~= nil then
+			local char = plyr:GetData("Character")
+			if char ~= nil then
+				if Inventory.Items:HasId(char:GetData("SID"), 1, data.schematic.id) then
+					local bench = _types[data.bench]
+					if bench ~= nil then
+						if
+							bench.canUseSchematics
+							and (
+								not bench.restrictions
+								or bench.restrictions.shared
+								or (bench.restrictions.interior ~= nil and bench.restrictions.interior == GlobalState[string.format(
+									"%s:House",
+									source
+								)])
+								or (bench.restrictions.char ~= nil and bench.restrictions.char == char:GetData("SID"))
+								or (bench.restrictions.job ~= nil and Jobs.Permissions:HasJob(
+									source,
+									bench.restrictions.job.id,
+									bench.restrictions.job.workplace,
+									bench.restrictions.job.grade,
+									false,
+									bench.restrictions.job.reqDuty,
+									bench.restrictions.job.permissionKey or "JOB_CRAFTING"
+								))
+								or (
+									bench.restrictions.rep ~= nil
+									and Reputation:GetLevel(source, bench.restrictions.rep.id)
+										>= bench.restrictions.rep.level
+								)
 							)
-						)
-					then
-						if INVENTORY.Items:RemoveId(char:GetData("SID"), 1, data.schematic) then
-							if Crafting.Schematics:Add(data.bench, data.schematic.Name, char:GetData("SID")) then
-								TriggerClientEvent("Crafting:Client:ForceBenchRefresh", source)
-								cb(true)
+						then
+							if Inventory.Items:RemoveId(char:GetData("SID"), 1, data.schematic) then
+								if Crafting.Schematics:Add(data.bench, data.schematic.Name) then
+									TriggerClientEvent("Crafting:Client:ForceBenchRefresh", source)
+									cb(true)
+								else
+									cb(false)
+								end
 							else
 								cb(false)
 							end
@@ -462,18 +423,6 @@ function RegisterCraftingCallbacks()
 	end)
 end
 
-AddEventHandler("Characters:Server:PlayerLoggedOut", function(source, cData)
-	if _playerSchems[cData.SID] then
-		_playerSchems[cData.SID] = nil
-	end
-end)
-
-AddEventHandler("Characters:Server:PlayerDropped", function(source, cData)
-	if _playerSchems[cData.SID] then
-		_playerSchems[cData.SID] = nil
-	end
-end)
-
 function RegisterTestBench()
 	for k, v in ipairs(CraftingTables) do
 		Crafting:RegisterBench(
@@ -485,40 +434,6 @@ function RegisterTestBench()
 			v.recipes
 		)
 	end
-end
-
-function RegisterPublicSchematicBenches()
-	for k, v in ipairs(PublicSchematicTables) do
-		Crafting:RegisterBench(
-			string.format("public-%s", v.id),
-			"Use Tool Bench",
-			v.targetConfig,
-			v.location,
-			{ shared = true },
-			{},
-			true,
-			v.id
-		)
-	end
-end
-
-function GetCharacterPublicSchems(stateID, forceRefresh)
-	if _playerSchems[stateID] ~= nil and not forceRefresh then
-		return _playerSchems[stateID]
-	end
-
-	_playerSchems[stateID] = {}
-
-	local t = MySQL.rawExecute.await('SELECT sid, bench, schematic FROM character_schematics WHERE sid = ?', {
-		stateID,
-	})
-
-	for k, v in ipairs(t) do
-		_playerSchems[stateID][v.bench] = _playerSchems[stateID][v.bench] or {}
-		table.insert(_playerSchems[stateID][v.bench], v.schematic)
-	end
-
-	return _playerSchems[stateID]
 end
 
 AddEventHandler("Jobs:Server:JobUpdate", function(source)

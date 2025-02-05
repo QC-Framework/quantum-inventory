@@ -1,5 +1,5 @@
 _itemsSource["uwu_cafe"] = {
-	{
+    {
 		name = "choclate_pancakes",
 		label = "Chocolate Pancakes",
 		price = 240,
@@ -149,7 +149,7 @@ _itemsSource["uwu_cafe"] = {
 		isDestroyed = true,
 		durability = (60 * 60 * 24 * 5),
 	},
-	{
+    {
 		name = "homemade_cookie",
 		label = "Homemade Cookie",
 		price = 50,
@@ -186,7 +186,8 @@ _itemsSource["uwu_cafe"] = {
 		durability = (60 * 60 * 24 * 5),
 	},
 
-	{
+
+    {
 		name = "fruit_explosion",
 		label = "Fruit Explosion",
 		price = 240,
@@ -221,15 +222,18 @@ _itemsSource["uwu_cafe"] = {
 		},
 		energyModifier = {
 			modifier = 1.2,
-			duration = 18, -- not seconds?
-			cooldown = 60, -- seconds
+			duration = 4, -- not seconds?
+			cooldown = 30, -- seconds
+            skipScreenEffects = true,
 		},
 		metalic = false,
 		isDestroyed = true,
 		durability = (60 * 60 * 24 * 5),
 	},
 
-	{
+
+
+    {
 		name = "booba_tea",
 		label = "Bobba Tea",
 		price = 125,
@@ -244,7 +248,7 @@ _itemsSource["uwu_cafe"] = {
 		isDestroyed = true,
 		durability = (60 * 60 * 24 * 5),
 		animConfig = {
-			anim = "bubble_tea",
+			anim = "coffee",
 			time = 7500,
 			pbConfig = {
 				label = "Drinking Tea",
@@ -268,7 +272,7 @@ _itemsSource["uwu_cafe"] = {
 			modifier = 60,
 			min = 2,
 			max = 4,
-		},
+		}
 	},
 	{
 		name = "green_tea",
@@ -306,17 +310,18 @@ _itemsSource["uwu_cafe"] = {
 			},
 			Remove = {
 				PLAYER_DRUNK = 10,
-			},
+			}
 		},
 		stressTicks = { "5", "4", "3", "2", "1" },
 		progressModifier = {
 			modifier = 50,
 			min = 1,
 			max = 2,
-		},
+		}
 	},
 
-	{
+
+    {
 		name = "iced_coffee",
 		label = "Iced Coffee",
 		price = 200,
@@ -352,10 +357,10 @@ _itemsSource["uwu_cafe"] = {
 			},
 		},
 		progressModifier = {
-			modifier = 40,
-			min = 4,
-			max = 8,
-		},
+			modifier = 75,
+			min = 8,
+			max = 12,
+		}
 	},
 	{
 		name = "matcha_latte",
@@ -396,7 +401,7 @@ _itemsSource["uwu_cafe"] = {
 			modifier = 60,
 			min = 3,
 			max = 6,
-		},
+		}
 	},
 	{
 		name = "pumpkinspiced_latte",
@@ -437,7 +442,7 @@ _itemsSource["uwu_cafe"] = {
 			modifier = 60,
 			min = 3,
 			max = 6,
-		},
+		}
 	},
 	{
 		name = "cat_tuccino",
@@ -478,10 +483,10 @@ _itemsSource["uwu_cafe"] = {
 			modifier = 40,
 			min = 6,
 			max = 10,
-		},
+		}
 	},
 
-	{
+    {
 		name = "frozen_yoghurt",
 		label = "Frozen Yoghurt",
 		price = 240,
@@ -516,7 +521,7 @@ _itemsSource["uwu_cafe"] = {
 		},
 		energyModifier = {
 			modifier = 1.1,
-			duration = 18, -- not seconds?
+			duration = 6, -- not seconds?
 			cooldown = 60, -- seconds
 			skipScreenEffects = true,
 		},
@@ -552,14 +557,14 @@ _itemsSource["uwu_cafe"] = {
 				disarm = true,
 				ignoreModifier = true,
 				disableMovement = false,
-				disableCarMovement = false,
+				disableCarMovement =    false,
 				disableMouse = false,
 				disableCombat = true,
 			},
 		},
 		energyModifier = {
 			modifier = 1.15,
-			duration = 15, -- not seconds?
+			duration = 6, -- not seconds?
 			cooldown = 60, -- seconds
 			skipScreenEffects = true,
 		},
@@ -604,7 +609,7 @@ _itemsSource["uwu_cafe"] = {
 		label = "UwU Bear",
 		description = "UwU Cafe Collectable",
 		price = 0,
-		isUsable = true,
+		isUsable = false,
 		isRemoved = false,
 		isStackable = 1000,
 		type = 5,
@@ -617,7 +622,7 @@ _itemsSource["uwu_cafe"] = {
 		label = "UwU Rainbow Bear",
 		description = "UwU Cafe Collectable",
 		price = 0,
-		isUsable = true,
+		isUsable = false,
 		isRemoved = false,
 		isStackable = 1000,
 		type = 5,
@@ -630,7 +635,7 @@ _itemsSource["uwu_cafe"] = {
 		label = "UwU Sun Bear",
 		description = "UwU Cafe Collectable",
 		price = 0,
-		isUsable = true,
+		isUsable = false,
 		isRemoved = false,
 		isStackable = 1000,
 		type = 5,
@@ -643,7 +648,7 @@ _itemsSource["uwu_cafe"] = {
 		label = "UwU Flower Bear",
 		description = "UwU Cafe Collectable",
 		price = 0,
-		isUsable = true,
+		isUsable = false,
 		isRemoved = false,
 		isStackable = 1000,
 		type = 5,
@@ -656,7 +661,7 @@ _itemsSource["uwu_cafe"] = {
 		label = "UwU Tree Bear",
 		description = "UwU Cafe Collectable",
 		price = 0,
-		isUsable = true,
+		isUsable = false,
 		isRemoved = false,
 		isStackable = 1000,
 		type = 5,
@@ -669,7 +674,7 @@ _itemsSource["uwu_cafe"] = {
 		label = "UwU Heart Bear",
 		description = "UwU Cafe Collectable",
 		price = 0,
-		isUsable = true,
+		isUsable = false,
 		isRemoved = false,
 		isStackable = 1000,
 		type = 5,
@@ -682,7 +687,7 @@ _itemsSource["uwu_cafe"] = {
 		label = "UwU Moon Bear",
 		description = "UwU Cafe Collectable",
 		price = 0,
-		isUsable = true,
+		isUsable = false,
 		isRemoved = false,
 		isStackable = 1000,
 		type = 5,
@@ -695,7 +700,7 @@ _itemsSource["uwu_cafe"] = {
 		label = "UwU Rain Bear",
 		description = "UwU Cafe Collectable",
 		price = 0,
-		isUsable = true,
+		isUsable = false,
 		isRemoved = false,
 		isStackable = 1000,
 		type = 5,
@@ -708,7 +713,7 @@ _itemsSource["uwu_cafe"] = {
 		label = "UwU Star Bear",
 		description = "UwU Cafe Collectable",
 		price = 0,
-		isUsable = true,
+		isUsable = false,
 		isRemoved = false,
 		isStackable = 1000,
 		type = 5,
@@ -721,7 +726,7 @@ _itemsSource["uwu_cafe"] = {
 		label = "UwU Snow Bear",
 		description = "UwU Cafe Collectable",
 		price = 0,
-		isUsable = true,
+		isUsable = false,
 		isRemoved = false,
 		isStackable = 1000,
 		type = 5,

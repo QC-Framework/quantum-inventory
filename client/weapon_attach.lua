@@ -1,46 +1,20 @@
 _weapons = {}
 local disabled = false
 local weaponLimit = 4
-
-spawnedObjs = {}
-attachedObjects = {}
+local attachedObjects = {}
 
 local weaponOffsets = {
 	[1] = {
-		x = 0.1,
-		y = -0.155,
-		z = 0.21,
-		rx = 0.0,
-		ry = 150.0,
-		rz = 0.0,
-		diff = 0.1,
+		x = 0.1, y = -0.155, z = 0.21, rx = 0.0, ry = 150.0, rz = 0.0, diff = 0.1
 	},
 	[2] = {
-		x = 0.1,
-		y = -0.155,
-		z = 0.21,
-		rx = 0.0,
-		ry = 150.0,
-		rz = 0.0,
-		diff = 0.2,
+		x = 0.1, y = -0.155, z = 0.21, rx = 0.0, ry = 150.0, rz = 0.0, diff = 0.2
 	},
 	[3] = {
-		x = 0.1,
-		y = -0.155,
-		z = 0.21,
-		rx = 180.0,
-		ry = -150.0,
-		rz = 0.0,
-		diff = 0.2,
+		x = 0.1, y = -0.155, z = 0.21, rx = 180.0, ry = -150.0, rz = 0.0, diff = 0.2
 	},
 	[4] = {
-		x = 0.1,
-		y = -0.155,
-		z = 0.21,
-		rx = 180.0,
-		ry = 180.0,
-		rz = 0.0,
-		diff = 0.3,
+		x = 0.1, y = -0.155, z = 0.21, rx = 180.0, ry = 180.0, rz = 0.0, diff = 0.3
 	},
 }
 
@@ -48,223 +22,103 @@ function LoadModel(model)
 	RequestModel(model)
 	local attempts = 0
 	while not HasModelLoaded(model) and attempts < 10 do
-		Citizen.Wait(100)
+		Wait(100)
 		attempts += 1
 	end
 end
 
-function LoadWeaponModel(weapon)
-	RequestWeaponAsset(weapon, 31, 0)
-	local attempts = 0
-	while not HasWeaponAssetLoaded(weapon) and attempts < 10 do
-		Citizen.Wait(100)
-		attempts += 1
-	end
-end
-
-function LoadComponentModel(attachment)
-	local componentModel = GetWeaponComponentTypeModel(attachment)
-	RequestModel(componentModel)
-	local attempts = 0
-	while not HasModelLoaded(componentModel) and attempts < 10 do
-		Citizen.Wait(100)
-		attempts += 1
-	end
-end
-
-function CountType(id, type)
+function CountType(type)
 	local count = 0
-	if attachedObjects[id] then
-		for k, v in ipairs(attachedObjects[id]) do
-			if v.type == type then
-				count += 1
-			end
+	for k, v in ipairs(attachedObjects) do
+		if v.type == type then
+			count += 1
 		end
 	end
 	return count
 end
 
 function HasAttachedItem(item)
-	if attachedObjects[id] then
-		for k, v in ipairs(attachedObjects[id]) do
-			if v.item == item then
-				return k
-			end
+	for k, v in ipairs(attachedObjects) do
+		if v.item == item then
+			return k
 		end
 	end
 
 	return false
 end
 
-function DeleteAttached(id)
-	if attachedObjects[id] then
-		for k, v in ipairs(attachedObjects[id]) do
-			DeleteEntity(v.object)
-		end
+function GetNextSlot(type) end
+
+function DeleteAttached()
+	for k, v in ipairs(attachedObjects) do
+		DeleteEntity(v.object)
 	end
-	attachedObjects[id] = {}
+	attachedObjects = {}
 end
 
-local function SetupWeaponAttchs(obj, wepHash, attachs, weapon)
-	local comps = {}
-
-	if WEAPON_COMPS[weapon] then
-		for k, v in ipairs(WEAPON_COMPS[weapon]) do
-			if v.type ~= "flashlight" then
-				comps[v.type] = v.attachment
-			end
-		end
-	end
-
-	if attachs then
-		for k, v in pairs(attachs) do
-			if k ~= "flashlight" then
-				comps[k] = v.attachment
-			end
-		end
-	end
-
-	for k, v in pairs(comps) do
-		local hash = GetHashKey(v)
-		if DoesWeaponTakeWeaponComponent(wepHash, hash) then
-			if not HasWeaponGotWeaponComponent(obj, hash) then
-				LoadComponentModel(hash)
-				local componentModel = GetWeaponComponentTypeModel(v)
-				GiveWeaponComponentToWeaponObject(obj, hash)
-			end
-		end
-	end
-end
-
-local _processing = {}
-function CreateBackObjects(tPed, id, props)
-	while Weapons == nil do
-		Citizen.Wait(1)
-	end
-
-	if not LocalPlayer.state.loggedIn then
-		return
-	end
-
-	if _processing[id] then
-		return
+RegisterNetEvent("Weapons:Client:AttachToggle", function(state)
+	disabled = state
+	if disabled then
+		DeleteAttached()
 	else
-		_processing[id] = true
+		TriggerEvent("Weapons:Client:Attach")
+	end
+end)
+
+local attaching = false
+RegisterNetEvent("Weapons:Client:Attach", function(force)
+	if not LocalPlayer.state.loggedIn or disabled then
+		return
 	end
 
-	if DoesEntityExist(tPed) then
-		local _, curw = GetCurrentPedWeapon(tPed)
-		DeleteAttached(id)
-		for k, v in pairs(props) do
-			local pInfo = WEAPON_PROPS[v.weapon]
-			if pInfo then
-				local hasAttchItem = HasAttachedItem(v.item)
-				if pInfo.type == "weapon" then
-					local wHash = GetHashKey(v.weapon)
-					local count = CountType(id, pInfo.type)
-					if count < weaponLimit and not v.equipped then
-						local bone = GetPedBoneIndex(tPed, 24818)
-						--local obj = CreateObject(v.model, 1.0, 1.0, 1.0, 1, 1, 0)
+	while Weapons == nil do
+		Wait(1)
+	end
 
-						local coords = GetEntityCoords(tPed)
+	if attaching then
+		return
+	end
+	attaching = true
 
-						LoadWeaponModel(wHash)
+	local curw = Weapons:GetEquippedHash()
+	DeleteAttached()
+	for k, v in ipairs(WEAPON_PROPS) do
+		local itemData = Inventory.Items:GetData(v.item)
+		local hasItem = Inventory.Items:Has(itemData?.weapon or v.item, 1, true)
+		local hasAttchItem = HasAttachedItem(v.item)
+		if hasItem and not hasAttchItem then
+			LoadModel(v.model)
+			if v.type == "weapon" then
+				local isEquipped = curw == GetHashKey(itemData.weapon or itemData.name)
+				local count = CountType(v.type)
+				if count < weaponLimit and not isEquipped then
+					local bone = GetPedBoneIndex(PlayerPedId(), 24818)
+					local obj = CreateObject(v.model, 1.0, 1.0, 1.0, 1, 1, 0)
 
-						local obj = CreateWeaponObject(wHash, 0, coords.x, coords.y, coords.z, false, 1.0, false)
-
-						while not DoesEntityExist(obj) do
-							Citizen.Wait(1)
-						end
-
-						RequestWeaponHighDetailModel(obj)
-
-						if v.tint then
-							SetWeaponObjectTintIndex(obj, v.tint)
-						end
-
-						Entity(obj).state.backWeapon = true
-						local offset = weaponOffsets[count + 1]
-						table.insert(attachedObjects[id], {
-							object = obj,
-							type = pInfo.type,
-							item = pInfo.item,
-							pInfo = pInfo,
-							offset = offset,
-						})
-
-						if pInfo.override then
-							AttachEntityToEntity(
-								obj,
-								tPed,
-								bone,
-								pInfo.x,
-								pInfo.y,
-								pInfo.z,
-								pInfo.rx,
-								pInfo.ry,
-								pInfo.rz,
-								0,
-								1,
-								0,
-								1,
-								0,
-								1
-							)
-						else
-							AttachEntityToEntity(
-								obj,
-								tPed,
-								bone,
-								(offset.x + pInfo.x),
-								(offset.y + pInfo.y),
-								(offset.z + pInfo.z) - offset.diff,
-								(offset.rx + pInfo.rx),
-								(offset.ry + pInfo.ry),
-								(offset.rz + pInfo.rz),
-								0,
-								1,
-								0,
-								1,
-								0,
-								1
-							)
-						end
-						SetupWeaponAttchs(obj, wHash, v.attachments, v.weapon)
-						SetEntityCollision(obj, false, true)
-						SetEntityCompletelyDisableCollision(obj, false, true)
-						SetEntityNoCollisionEntity(obj, PlayerPedId(), false)
-					elseif v.equipped and attachedObjects[id][hasAttchItem] ~= nil then
-						DeleteEntity(attachedObjects[id][hasAttchItem].object)
-						table.remove(attachedObjects[id], hasAttchItem)
+					while not DoesEntityExist(obj) do
+						Wait(1)
 					end
-				elseif pInfo.type == "melee" then
-					LoadModel(pInfo.model)
-					local count = CountType(id, pInfo.type)
-					if v.equipped and attachedObjects[id][hasAttchItem] ~= nil then
-						DeleteEntity(attachedObjects[id][hasAttchItem].object)
-						table.remove(attachedObjects[id], hasAttchItem)
-					elseif count < weaponLimit and not v.equipped then
-						local bone = GetPedBoneIndex(tPed, pInfo.bone or 24818)
-						local coords = GetEntityCoords(tPed)
-						local obj = CreateObject(pInfo.model, coords.x, coords.y, coords.z, false, true, false)
-						Entity(obj).state.backWeapon = true
-						table.insert(attachedObjects[id], {
-							object = obj,
-							type = pInfo.type,
-							item = pInfo.item,
-							pInfo = pInfo,
-							offset = offset,
-						})
+
+					Entity(obj).state:set("WeaponOwner", LocalPlayer.state.serverID, true)
+					table.insert(attachedObjects, {
+						object = obj,
+						type = v.type,
+						item = v.item,
+					})
+
+					local offset = weaponOffsets[count+1]
+
+					if v.override then
 						AttachEntityToEntity(
 							obj,
-							tPed,
+							PlayerPedId(),
 							bone,
-							pInfo.x,
-							pInfo.y,
-							pInfo.z,
-							pInfo.rx,
-							pInfo.ry,
-							pInfo.rz,
+							v.x,
+							v.y,
+							v.z,
+							v.rx,
+							v.ry,
+							v.rz,
 							0,
 							1,
 							0,
@@ -272,34 +126,17 @@ function CreateBackObjects(tPed, id, props)
 							0,
 							1
 						)
-						SetEntityCollision(obj, false, true)
-						SetEntityCompletelyDisableCollision(obj, false, true)
-					end
-				elseif pInfo.type == "object" then
-					LoadModel(pInfo.model)
-					local count = CountType(id, pInfo.type)
-					if count < weaponLimit then
-						local bone = GetPedBoneIndex(tPed, pInfo.bone or 24818)
-						local coords = GetEntityCoords(tPed)
-						local obj = CreateObject(pInfo.model, coords.x, coords.y, coords.z, false, true, false)
-						-- Entity(obj).state:set("WeaponOwner", id, true)
-						table.insert(attachedObjects[id], {
-							object = obj,
-							type = pInfo.type,
-							item = pInfo.item,
-							pInfo = pInfo,
-							offset = offset,
-						})
+					else
 						AttachEntityToEntity(
 							obj,
-							tPed,
+							PlayerPedId(),
 							bone,
-							pInfo.x,
-							pInfo.y,
-							pInfo.z,
-							pInfo.rx,
-							pInfo.ry,
-							pInfo.rz,
+							(offset.x + v.x),
+							(offset.y + v.y),
+							(offset.z + v.z) - offset.diff,
+							(offset.rx + v.rx),
+							(offset.ry + v.ry),
+							(offset.rz + v.rz),
 							0,
 							1,
 							0,
@@ -307,21 +144,77 @@ function CreateBackObjects(tPed, id, props)
 							0,
 							1
 						)
-						SetEntityCollision(obj, false, true)
-						SetEntityCompletelyDisableCollision(obj, false, true)
 					end
+					SetEntityCollision(obj, false, true)
+					SetEntityCompletelyDisableCollision(obj, false, true)
+				elseif isEquipped and attachedObjects[hasAttchItem] ~= nil then
+					DeleteEntity(attachedObjects[hasAttchItem].object)
+					table.remove(attachedObjects, hasAttchItem)
+				end
+			elseif v.type == "melee" then
+				local isEquipped = curw == GetHashKey(itemData.weapon or itemData.name)
+				local count = CountType(v.type)
+				if isEquipped and attachedObjects[hasAttchItem] ~= nil then
+					DeleteEntity(attachedObjects[hasAttchItem].object)
+					table.remove(attachedObjects, hasAttchItem)
+				elseif count < weaponLimit and not isEquipped then
+					local bone = GetPedBoneIndex(PlayerPedId(), v.bone or 24818)
+					local obj = CreateObject(v.model, 1.0, 1.0, 1.0, 1, 1, 0)
+					Entity(obj).state:set("WeaponOwner", LocalPlayer.state.serverID, true)
+					table.insert(attachedObjects, {
+						object = obj,
+						type = v.type,
+						item = v.item,
+					})
+					AttachEntityToEntity(obj, PlayerPedId(), bone, v.x, v.y, v.z, v.rx, v.ry, v.rz, 0, 1, 0, 1, 0, 1)
+					SetEntityCollision(obj, false, true)
+					SetEntityCompletelyDisableCollision(obj, false, true)
+				end
+			elseif v.type == "object" then
+				local count = CountType(v.type)
+				if count < weaponLimit then
+					local bone = GetPedBoneIndex(PlayerPedId(), 24818)
+					local obj = CreateObject(v.model, 1.0, 1.0, 1.0, 1, 1, 0)
+					Entity(obj).state:set("WeaponOwner", LocalPlayer.state.serverID, true)
+					table.insert(attachedObjects, {
+						object = obj,
+						type = v.type,
+						item = v.item,
+					})
+					AttachEntityToEntity(obj, PlayerPedId(), bone, v.x, v.y, v.z, v.rx, v.ry, v.rz, 0, 1, 0, 1, 0, 1)
+					SetEntityCollision(obj, false, true)
+					SetEntityCompletelyDisableCollision(obj, false, true)
+				end
+			end
+		elseif not hasItem and hasAttchItem then
+			DeleteEntity(attachedObjects[hasAttchItem].object)
+			table.remove(attachedObjects, hasAttchItem)
+		elseif hasItem and hasAttchItem then
+			if v.type == "weapon" or v.type == "melee" then
+				local isEquipped = curw == GetHashKey(itemData.weapon or itemData.name)
+				if isEquipped and attachedObjects[hasAttchItem] ~= nil then
+					DeleteEntity(attachedObjects[hasAttchItem].object)
+					table.remove(attachedObjects, hasAttchItem)
 				end
 			end
 		end
-
-		_processing[id] = false
-
-		return true
-	else
-		return false
 	end
-end
+
+	attaching = false
+end)
+
+RegisterNetEvent("Characters:Client:Spawn", function()
+	CreateThread(function()
+		while _cachedInventory == nil do
+			Wait(100)
+		end
+	
+		Wait(1000)
+		
+		TriggerEvent("Weapons:Client:Attach")
+	end)
+end)
 
 RegisterNetEvent("Characters:Client:Logout", function()
-	_processing = {}
+	DeleteAttached()
 end)

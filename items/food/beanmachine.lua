@@ -36,7 +36,7 @@ _itemsSource["beanmachine"] = {
 		durability = (60 * 60 * 24 * 5),
 		energyModifier = {
 			modifier = 1.1,
-			duration = 18, -- not seconds?
+			duration = 6, -- not seconds?
 			cooldown = 60, -- seconds
 			skipScreenEffects = true,
 		},
@@ -44,7 +44,7 @@ _itemsSource["beanmachine"] = {
 	{
 		name = "carrot_cake",
 		label = "Carrot Cake",
-		description = "A Lovely Comforting Cake",
+        description = "A Lovely Comforting Cake",
 		price = 240,
 		isUsable = true,
 		isRemoved = true,
@@ -61,7 +61,7 @@ _itemsSource["beanmachine"] = {
 				PLAYER_STRESS = 20,
 			},
 		},
-		stressTicks = { "3", "3", "3", "3", "3", "3", "3", "3" },
+        stressTicks = { "3", "3", "3", "3", "3", "3", "3", "3" },
 		animConfig = {
 			anim = "eat",
 			time = 10000,
@@ -83,10 +83,11 @@ _itemsSource["beanmachine"] = {
 		durability = (60 * 60 * 24 * 5),
 	},
 
-	{
+
+    {
 		name = "smoothie_veg",
 		label = "Veg Smoothie",
-		description = "A Bean Machine Exclusive",
+        description = "A Bean Machine Exclusive",
 		price = 240,
 		isUsable = true,
 		isRemoved = true,
@@ -100,9 +101,9 @@ _itemsSource["beanmachine"] = {
 				PLAYER_HUNGER = 10,
 				PLAYER_THIRST = 75,
 			},
-			Remove = {
+            Remove = {
 				PLAYER_DRUNK = 10,
-			},
+			}
 		},
 		animConfig = {
 			anim = "cup",
@@ -122,7 +123,7 @@ _itemsSource["beanmachine"] = {
 		},
 		energyModifier = {
 			modifier = 1.2,
-			duration = 12, -- not seconds?
+			duration = 5, -- not seconds?
 			cooldown = 60, -- seconds
 			skipScreenEffects = true,
 		},
@@ -131,7 +132,8 @@ _itemsSource["beanmachine"] = {
 		durability = (60 * 60 * 24 * 5),
 	},
 
-	{
+
+    {
 		name = "expresso",
 		label = "Espresso",
 		price = 200,
@@ -146,7 +148,7 @@ _itemsSource["beanmachine"] = {
 		isDestroyed = true,
 		durability = (60 * 60 * 24 * 5),
 		animConfig = {
-			anim = "coffee_expresso",
+			anim = "coffee",
 			time = 7500,
 			pbConfig = {
 				label = "Drinking Espresso",
@@ -163,14 +165,14 @@ _itemsSource["beanmachine"] = {
 		},
 		statusChange = {
 			Add = {
-				PLAYER_THIRST = 50,
+				PLAYER_THIRST = 25,
 			},
 		},
 		progressModifier = {
 			modifier = 50,
 			min = 6,
 			max = 10,
-		},
+		}
 	},
 	{
 		name = "beanmachine",
@@ -205,13 +207,13 @@ _itemsSource["beanmachine"] = {
 		},
 		statusChange = {
 			Add = {
-				PLAYER_THIRST = 40,
+				PLAYER_THIRST = 15,
 			},
 		},
 		progressModifier = {
-			modifier = 40,
+			modifier = 60,
 			min = 3,
 			max = 6,
-		},
+		}
 	},
 }

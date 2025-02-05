@@ -11,21 +11,8 @@ _govAccount = nil
 _hasAttchs = {}
 
 _refreshAttchs = {}
-_refreshGangChain = {}
 
 _dropzones = {}
-
-_equipped = {}
-_listeners = {}
-_cachedProps = {}
-
-_invCounts = {}
-_cachedInvs = {}
-
-_playerShops = {}
-_playerShopMods = {}
-
-_lastUsedItem = {}
 
 local _defInvSettings = {
 	muted = false,
@@ -51,38 +38,20 @@ function split(pString, pPattern)
 	return Table
 end
 
-function ValueContined(tbl, value)
-	for k, v in ipairs(tbl) do
-		if v == value then
-			return true
-		end
-	end
-	return false
-end
-
-function BuildMetaDataTable(cData, item, existing)
+function BuildMetaDataTable(cData, item)
 	local itemExist = itemsDatabase[item]
-	local MetaData = deepcopy(existing or {})
-	
-	if itemExist.staticMetadata ~= nil then
-		for k, v in pairs(itemExist.staticMetadata) do
-			MetaData[k] = v
-		end
-	end
+	local MetaData = {}
 
 	if itemExist.type == 2 then
 		if not MetaData.SerialNumber and not itemExist.noSerial then
 			if MetaData.Scratched then
-				MetaData.ScratchedSerialNumber = Weapons:Purchase(cData.SID, itemExist, true, MetaData.Company)
+				MetaData.ScratchedSerialNumber = Weapons:Purchase(Owner, itemExist, true, MetaData.Company)
 				MetaData.Scratched = nil
 			else
-				MetaData.SerialNumber = Weapons:Purchase(cData.SID, itemExist, false, MetaData.Company)
+				MetaData.SerialNumber = Weapons:Purchase(Owner, itemExist, false, MetaData.Company)
 			end
 			MetaData.Company = nil
 		end
-
-		MetaData.ammo = MetaData.ammo or 0
-		MetaData.clip = MetaData.clip or 0
 	elseif itemExist.type == 10 and not MetaData.Container then
 		MetaData.Container = string.format("container:%s", Sequence:Get("Container"))
 	elseif itemExist.type == 11 and not MetaData.Quality then
@@ -97,15 +66,11 @@ function BuildMetaDataTable(cData, item, existing)
 		MetaData.PassportID = cData.User
 		MetaData.StateID = cData.SID
 		MetaData.DOB = cData.DOB
-		MetaData.Mugshot = cData.Mugshot
 	elseif itemExist.name == "moneybag" and not MetaData.Finish then
 		MetaData.Finished = os.time() + (60 * 60 * 24 * math.random(1, 3))
 	elseif itemExist.name == "crypto_voucher" and not MetaData.CryptoCoin and not MetaData.Quantity then
-		MetaData.CryptoCoin = "MALD"
+		MetaData.CryptoCoin = "PLEB"
 		MetaData.Quantity = math.random(25, 50)
-	elseif itemExist.name == "rep_voucher" and not MetaData.Reputation and not MetaData.Amount then
-		MetaData.Reputation = "Farming"
-		MetaData.Amount = math.random(1000, 5000)
 	elseif itemExist.name == "vpn" then
 		MetaData.VpnName = {
 			First = Generator.Name:First(),
@@ -113,43 +78,19 @@ function BuildMetaDataTable(cData, item, existing)
 		}
 	elseif itemExist.name == "cigarette_pack" then
 		MetaData.Count = 30
-	elseif itemExist.name == "rusty_strawsprinkbox" then
-		MetaData.Count = 10
-	elseif itemExist.name == "rusty_ringmixbox" then
-		MetaData.Count = 6
-	elseif itemExist.name == "rusty_ringbox" then
-		MetaData.Count = 12
-	elseif itemExist.name == "rusty_pd" then
-		MetaData.Count = 12
-	elseif itemExist.name == "meth_table" and not MetaData.MethTable then
-		MetaData.MethTable = Drugs.Meth:GenerateTable(1)
-	elseif itemExist.name == "adv_meth_table" and not MetaData.MethTable then
-		MetaData.MethTable = Drugs.Meth:GenerateTable(2)
-	elseif itemExist.name == "meth_brick" then
+	elseif itemExist.name == "choplist" and not MetaData.ChopList then
+		MetaData.ChopList = Phone.LSUnderground.Chopping:GenerateList(math.random(4, 8), math.random(3, 5))
+	elseif itemExist.name == "meth_bag" or itemExist.name == "meth_brick" or itemExist.name == "coke_bag" or itemExist.name == "coke_brick" then
+		if not quality then
+			quality = math.random(1, 100)
+		end
+		if itemExist.name == "meth_brick" then
 			MetaData.Finished = os.time() + (60 * 60 * 24)
-	elseif itemExist.name == "moonshine_still" and not MetaData.Still then
-		MetaData.Still = Drugs.Moonshine.Still:Generate(1)
-	elseif itemExist.name == "moonshine_barrel" and not MetaData.Brew then
-		MetaData.Brew = Drugs.Moonshine.Barrel:Generate(1)
+		end
 	elseif itemExist.name == "paleto_access_codes" and not MetaData.AccessCodes then
 		MetaData.AccessCodes = {
 			Robbery:GetAccessCodes('paleto')[1]
 		}
-	elseif itemExist.name == "lsundg_invite" and cData then
-		MetaData.Inviter = {
-			SID = cData.SID,
-			First = cData.First,
-			Last = cData.Last
-		}
-	elseif (itemExist.name == "pd_panic_button" or itemExist.name == "doc_panic_button" or itemExist.name == "ems_panic_button") and cData then
-		MetaData.Officer = {
-			Callsign = cData.Callsign or "???",
-			First = cData.First,
-			Last = cData.Last,
-			SID = cData.SID,
-		}
-	elseif itemExist.name == "shark_card" and not MetaData.Amount then
-		MetaData.Amount = math.random(5000, 25000)
 	end
 
 	return MetaData
@@ -157,17 +98,21 @@ end
 
 AddEventHandler("Inventory:Shared:DependencyUpdate", RetrieveComponents)
 function RetrieveComponents()
+	Database = exports["quantum-base"]:FetchComponent("Database")
 	Callbacks = exports["quantum-base"]:FetchComponent("Callbacks")
 	Sequence = exports["quantum-base"]:FetchComponent("Sequence")
 	Logger = exports["quantum-base"]:FetchComponent("Logger")
 	Utils = exports["quantum-base"]:FetchComponent("Utils")
 	Fetch = exports["quantum-base"]:FetchComponent("Fetch")
+	Default = exports["quantum-base"]:FetchComponent("Default")
 	Inventory = exports["quantum-base"]:FetchComponent("Inventory")
+	EntityTypes = exports["quantum-base"]:FetchComponent("EntityTypes")
 	Chat = exports["quantum-base"]:FetchComponent("Chat")
 	Wallet = exports["quantum-base"]:FetchComponent("Wallet") 
 	Execute = exports["quantum-base"]:FetchComponent("Execute")
 	Middleware = exports["quantum-base"]:FetchComponent("Middleware")
 	Crafting = exports["quantum-base"]:FetchComponent("Crafting")
+	Animations = exports["quantum-base"]:FetchComponent("Animations")
 	Weapons = exports["quantum-base"]:FetchComponent("Weapons")
 	Jobs = exports["quantum-base"]:FetchComponent("Jobs")
 	Reputation = exports["quantum-base"]:FetchComponent("Reputation")
@@ -182,6 +127,7 @@ end
 
 AddEventHandler("Core:Shared:Ready", function()
 	exports["quantum-base"]:RequestDependencies("Inventory", {
+		"Database",
 		"Callbacks",
 		"Sequence",
 		"Fetch",
@@ -189,10 +135,13 @@ AddEventHandler("Core:Shared:Ready", function()
 		"Utils",
 		"Inventory",
 		"Chat",
+		"EntityTypes",
+		"Default",
 		"Wallet",
 		"Middleware",
 		"Crafting",
 		"Execute",
+		"Animations",
 		"Weapons",
 		"Jobs",
 		"Reputation",
@@ -202,51 +151,42 @@ AddEventHandler("Core:Shared:Ready", function()
 		"Banking",
 		"Drugs",
 		"Robbery",
-		"Laptop",
+		"Laptop"
 	}, function(error)
 		if #error > 0 then
 			return
 		end
 		RetrieveComponents()
 
-		UpdateDatabaseItems()
-		LoadItemsFromDb()
-		--LoadItems()
+		LoadItems()
+		LoadSchematics()
 		RegisterCallbacks()
 		LoadEntityTypes()
 		LoadShops()
-		LoadPlayerShops()
 		SetupGarbage()
 
 		ClearDropZones()
 		ClearBrokenItems()
-		ClearLocalVehicleInventories()
 		CleanupExpiredCooldowns()
 		LoadCraftingCooldowns()
 
 		RegisterCommands()
 		RegisterStashCallbacks()
 		RegisterTestBench()
-		RegisterPublicSchematicBenches()
 		RegisterCraftingCallbacks()
-		RegisterDonorVanityItemsCallbacks()
 
         local f = Banking.Accounts:GetOrganization("government")
-		if f ~= true then
-        	_govAccount = f.Account
-		end
+        _govAccount = f.Account
 
 		Middleware:Add("Characters:Spawning", function(source)
-			TriggerLatentClientEvent("Inventory:Client:PolySetup", source, 50000, _polyInvs)
+			TriggerClientEvent("Inventory:Client:PolySetup", source, _polyInvs)
 
-			local char = Fetch:CharacterSource(source)
+			local player = Fetch:Source(source)
+			local char = player:GetData("Character")
 			local sid = char:GetData("SID")
 			
-			_refreshAttchs[sid] = true
-			_refreshGangChain[sid] = true
 			refreshShit(sid, true)
 
-			TriggerLatentClientEvent("Weapons:Client:SetProps", source, 50000, _cachedProps)
 			if char:GetData("InventorySettings") == nil then
 				char:SetData("InventorySettings", _defInvSettings)
 			end
@@ -264,10 +204,37 @@ AddEventHandler("Core:Shared:Ready", function()
 					canUseSchematics = v.canUseSchematics,
 				})
 			end
-			TriggerLatentClientEvent("Crafting:Client:CreateBenches", source, 50000, benches)
-			TriggerLatentClientEvent("Inventory:Client:DropzoneForceUpdate", source, 50000, _dropzones)
-			TriggerLatentClientEvent("Inventory:Client:BasicShop:Set", source, 50000, _playerShops)
+			TriggerClientEvent("Crafting:Client:CreateBenches", source, benches)
+			TriggerClientEvent("Inventory:Client:DropzoneForceUpdate", source, _dropzones)
 		end, 2)
+
+		Middleware:Add("Characters:Logout", function(source)
+			local p = promise.new()
+
+			for k, v in pairs(_openInvs) do
+				if v == source then
+					_openInvs[k] = false
+				end
+			end
+
+			Callbacks:ClientCallback(source, "Weapons:Logout", {}, function(data)
+				if data ~= nil then
+					Weapons:Save(source, data.slot, data.ammo, data.clip)
+				end
+				p:resolve(true)
+			end)
+			return Citizen.Await(p)
+		end, 1)
+
+		Middleware:Add("playerDropped", function(source)
+			for k, v in pairs(_openInvs) do
+				if v == source then
+					_openInvs[k] = false
+				end
+			end
+
+			return true
+		end, 1)
 
 		Middleware:Add("Characters:Created", function(source, cData)
 			local player = Fetch:Source(source)
@@ -276,13 +243,7 @@ AddEventHandler("Core:Shared:Ready", function()
 			local slot = 1
 			for k, v in ipairs(Config.StartItems) do
 				local metadata = BuildMetaDataTable(cData, v.name)
-				
-				if v.name == "choplist" then
-					metadata.ChopList = Laptop.LSUnderground.Chopping:GenerateList(math.random(4, 8), math.random(3, 5))
-					metadata.Owner = cData.SID
-				end
-
-				local insData = INVENTORY:AddItem(cData.SID, v.name, v.countTo, metadata, 1, false, false, false, false, slot, false, false, true)
+				Inventory:CreateItemWithNoMeta(cData.SID, v.name, v.count, slot, metadata, 1, true)
 				slot += 1
 			end
 
@@ -291,74 +252,16 @@ AddEventHandler("Core:Shared:Ready", function()
 	end)
 end)
 
-local function HandleLogout(source, cData)
-	for k, v in pairs(_openInvs) do
-		if v == source then
-			_openInvs[k] = false
-		end
-	end
-
-	if _listeners[src] then
-		RemoveStateBagChangeHandler(_listeners[src])
-		_listeners[src] = nil
-	end
-	_cachedInvs[source] = nil
-	_equipped[source] = nil
-
-	TriggerClientEvent("Weapons:Client:ClearWeaponProps", -1, source)
-
-	if cData ~= nil then
-		_cachedInvs[string.format("%s-1", cData.SID)] = nil
-		_invCounts[cData.SID] = nil
-	end
-
-	_lastUsedItem[source] = nil
-end
-AddEventHandler("Characters:Server:PlayerLoggedOut", HandleLogout)
-AddEventHandler("Characters:Server:PlayerDropped", HandleLogout)
-
 AddEventHandler("Proxy:Shared:RegisterReady", function()
 	exports["quantum-base"]:RegisterComponent("Inventory", INVENTORY)
 end)
 
-AddEventHandler("Queue:Server:SessionActive", function(source)
-	TriggerLatentClientEvent("Inventory:Client:LoadItems", source, 50000, itemsDatabase)
-end)
-
-RegisterNetEvent("Inventory:Server:ReloadItems", function()
-	local src = source
-	TriggerLatentClientEvent("Inventory:Client:ReceiveReload", source, 50000, itemsDatabase)
-end)
-
 RegisterServerEvent("Inventory:server:closePlayerInventory", function()
 	local src = source
-	local char = Fetch:CharacterSource(src)
+	local char = Fetch:Source(src):GetData("Character")
 	if char ~= nil then
 		_openInvs[string.format("%s-%s", char:GetData("SID"), 1)] = false
 		refreshShit(char:GetData("SID"), true)
-	end
-end)
-
-RegisterNetEvent("Inventory:Server:DegradeLastUsed", function(degradeAmt)
-	local src = source
-	local char = Fetch:CharacterSource(src)
-	if char ~= nil then
-		if _lastUsedItem[src] then
-			local slot = Inventory:GetItem(_lastUsedItem[src])
-
-			if slot then
-				local itemData = itemsDatabase[slot.Name]
-
-				local newValue = slot.CreateDate - math.floor(itemData.durability * (degradeAmt / 100))
-
-				if (os.time() - itemData.durability >= newValue) then
-					Inventory.Items:RemoveId(slot.Owner, slot.invType, slot)
-				else
-					Inventory:SetItemCreateDate(slot.id, newValue)
-				end
-			end
-
-		end
 	end
 end)
 
@@ -367,130 +270,38 @@ function sendRefreshForClient(_src, owner, invType, slot)
 	TriggerClientEvent("Inventory:Client:SetSlot", _src, owner, invType, slot)
 end
 
-function SetGunPropData(source, sid, inv, isForce)
-	local data = {}
-	for k, v in ipairs(inv or {}) do
-		local itemData = itemsDatabase[v.Name]
-		if WEAPON_PROPS[itemData?.weapon or v.Name] then
-			local md = json.decode(v.MetaData)
-			data[string.format("i-%s", v.id)] = {
-				item = v.Name,
-				weapon = itemData?.weapon or v.Name,
-				tint = md?.WeaponTint or false,
-				attachments = md?.WeaponComponents or false,
-				slot = v.Slot,
-				equipped = _equipped[source] == v.Slot,
-			}
-		end
-	end
-
-	local needsUpdate = isForce
-	if not needsUpdate then
-		if _cachedProps[source] ~= nil then
-			for k, v in pairs(_cachedProps[source]) do
-				if data[k] == nil or v.equipped ~= data[k].equipped then
-					needsUpdate = true
-					break
-				end
-			end
-	
-			for k, v in pairs(data) do
-				if _cachedProps[source][k] == nil then
-					needsUpdate = true
-					break
-				end
-			end
-		else
-			needsUpdate = true
-		end
-	end
-
-	if needsUpdate then
-		_cachedProps[source] = data
-		TriggerLatentClientEvent("Weapons:Client:UpdateProps", -1, 50000, source, data)
-	end
-end
-
-local function isShopModerator(shop, source)
-	local char = Fetch:CharacterSource(source)
-	if char then
-		local sid = char:GetData("SID")
-		if _playerShops[shop] then
-			if _playerShops[shop].owner == sid then
-				return true
-			else
-				if _playerShops[shop].job ~= nil then
-					return Jobs.Permissions:HasPermissionInJob(source, _playerShops[shop].job, 'JOB_SHOP')
-				else
-					if _playerShopMods[shop] then
-						for k, v in ipairs(_playerShopMods[shop]) do
-							if v.sid == sid then
-								return true
-							end
-						end
-					end
-				end
-			end
-		end
-	end
-
-	return false
-end
-
-RegisterNetEvent("Weapons:Server:Equipped", function(state)
-	local src = source
-	_equipped[src] = tonumber(state)
-	local char = Fetch:CharacterSource(src)
-	if char ~= nil then
-		SetGunPropData(src, char:GetData("SID"), _cachedInvs[src])
-	end
-end)
-
-AddEventHandler("Queue:Server:SessionActive", function()
-	-- local src = source
-	-- for k, v in pairs(_cachedProps) do
-	-- 	TriggerClientEvent("Weapons:Client:UpdateProps", src, k, v)
-	-- end
-end)
-
 function refreshShit(sid, adding)
-	local char = Fetch:SID(tonumber(sid))
-	if char ~= nil then
-		local source = char:GetData("Source")
-		local inventory = getInventory(source, sid, 1)
+	local plyr = Fetch:SID(tonumber(sid))
+	if plyr ~= nil then
+		local source = plyr:GetData("Source")
+		local char = plyr:GetData("Character")
+		if char ~= nil then
+			local inventory = getInventory(source, sid, 1)
 
-		UpdateCharacterItemStates(source, inventory, true)
-
-		if  _refreshGangChain[sid] then
+			UpdateCharacterItemStates(source, inventory, true)
 			UpdateCharacterGangChain(source, inventory)
+
+			TriggerClientEvent("Inventory:Client:Cache", source, {
+				size = (LoadedEntitys[1].slots or 10),
+				name = char:GetData("First") .. " " .. char:GetData("Last"),
+				inventory = inventory,
+				invType = 1,
+				capacity = LoadedEntitys[1].capacity,
+				owner = sid,
+				isWeaponEligble = Weapons:IsEligible(source),
+				qualifications = char:GetData("Qualifications") or {},
+			}, _refreshAttchs[sid] ~= nil)
+
+			_refreshAttchs[sid] = nil
 		end
-
-		if _refreshAttchs[sid] ~= nil then
-			SetGunPropData(source, sid, inventory)
-		end
-
-		TriggerClientEvent("Inventory:Client:Cache", source, {
-			size = (LoadedEntitys[1].slots or 10),
-			name = char:GetData("First") .. " " .. char:GetData("Last"),
-			inventory = inventory,
-			invType = 1,
-			capacity = LoadedEntitys[1].capacity,
-			owner = sid,
-			isWeaponEligble = Weapons:IsEligible(source),
-			qualifications = char:GetData("Qualifications") or {},
-		}, _refreshAttchs[sid] ~= nil)
-
-		_cachedInvs[source] = inventory
-
-		_refreshAttchs[sid] = nil
-		_refreshGangChain[sid] = nil
 	end
 end
 
 function entityPermCheck(source, invType)
-	local char = Fetch:CharacterSource(source)
+	local plyr = Fetch:Source(source)
+	local char = plyr:GetData("Character")
 
-	local shittyInvData = LoadedEntitys[invType]
+	local shittyInvData = LoadedEntitys[tonumber(invType)]
 
 	if shittyInvData then
 		return (
@@ -522,79 +333,34 @@ function entityPermCheck(source, invType)
 	end
 end
 
-function getShopSlot(src, Owner, Type, slotId)
-	if LoadedEntitys[tonumber(Type)].shop then
-		if entityPermCheck(src, Type) then
-			local char = Fetch:CharacterSource(src)
-			local slots = getInventory(src, Owner, Type)
-			local slot = slots[slotId]
-			if slot then
-				local item, stack, price = nil, nil, nil
-				if itemsDatabase[slot.Name] ~= nil then
-					if not slot.job or Jobs.Permissions:HasJob(src, slot.job) then
-						return slot
-					end
-				end
-			end
-		end
-	end
-
-	return nil
-end
-
-function getShopSize(src, Owner, Type)
-	if LoadedEntitys[tonumber(Type)].shop then
-		if entityPermCheck(src, Type) then
-			return #getInventory(src, Owner, Type)
-		end
-	end
-
-	return 0
-end
-
 function getInventory(src, Owner, Type, limit)
 	if LoadedEntitys[tonumber(Type)].shop then
-		local char = Fetch:CharacterSource(src)
+		local char = Fetch:Source(src):GetData("Character")
 
 		local items = {}
 		if entityPermCheck(src, Type) then
 			for k, v in ipairs(Config.ShopItemSets[LoadedEntitys[Type].itemSet]) do
-				local item, stack, price = nil, nil, nil
-				if type(v) == "table" then
-					if itemsDatabase[v.item] ~= nil then
-						if not v.job or Jobs.Permissions:HasJob(src, v.job) then
-							item = v.item
-							stack = v.count or itemsDatabase[v.item].isStackable or 1
-							price = v.price or itemsDatabase[v.item].price or 0
-						end
-					end
-				else
-					if itemsDatabase[v] ~= nil then
-						item = v
-						stack = itemsDatabase[v].storeStack or itemsDatabase[v].isStackable
+				if itemsDatabase[v] ~= nil then
+					local stack = itemsDatabase[v].storeStack or itemsDatabase[v].isStackable
 
-						if not itemsDatabase[v].isStackable then
-							stack = 1
-						end
-	
-						if itemsDatabase[v].isStackable and stack > itemsDatabase[v].isStackable then
-							stack = itemsDatabase[v].isStackable
-						end
-						price = itemsDatabase[v].price or 0
+					if not itemsDatabase[v].isStackable then
+						stack = 1
 					end
-				end
 
-				if item then
+					if itemsDatabase[v].isStackable and stack > itemsDatabase[v].isStackable then
+						stack = itemsDatabase[v].isStackable
+					end
+
 					local doc = {
 						Slot = #items + 1,
-						Label = itemsDatabase[item].label,
+						Label = itemsDatabase[v].label,
 						Count = stack,
-						Name = item,
-						invType = Type,
+						Name = v,
+						invType = 11,
 						Quality = nil,
 						MetaData = {},
 						Owner = tostring(Owner),
-						Price = price,
+						Price = itemsDatabase[v].price,
 					}
 
 					table.insert(items, doc)
@@ -603,25 +369,13 @@ function getInventory(src, Owner, Type, limit)
 		end
 		return items
 	else
-		local inv = MySQL.rawExecute.await('SELECT id, count(*) as Count, owner as Owner, type as invType, item_id as Name, MAX(price) as Price, MAX(quality) AS Quality, information as MetaData, slot as Slot, MIN(creationDate) AS CreateDate FROM inventory WHERE owner = ? AND type = ? GROUP BY slot ORDER BY slot ASC', {
-			tostring(Owner),
-			Type,
+		return MySQL.query.await('SELECT id, count(id) as Count, name as Owner, item_id as Name, dropped as Temp, MAX(quality) as Quality, information as MetaData, slot as Slot, MIN(creationDate) AS CreateDate FROM inventory WHERE NAME = ? GROUP BY slot ORDER BY slot ASC', {
+			string.format("%s-%s", Owner, Type)
 		}) or {}
-		_cachedInvs[string.format("%s-%s", Owner, Type)] = inv
-
-		if Type == 1 then
-			_invCounts[Owner] = {}
-			for k, v in ipairs(inv) do
-				_invCounts[Owner][v.Name] = _invCounts[Owner][v.Name] or 0
-				_invCounts[Owner][v.Name] += v.Count
-			end
-		end
-
-		return inv
 	end
 end
 
-function getSlotCount(invType, vehClass, vehModel, override, owner, src)
+function getSlotCount(invType, vehClass, vehModel, override)
 	if override then
 		return override
 	end
@@ -639,7 +393,7 @@ function getSlotCount(invType, vehClass, vehModel, override, owner, src)
 			return _gloveboxSizes[vehClass].slots
 		end
 	elseif LoadedEntitys[tonumber(invType)].shop and LoadedEntitys[tonumber(invType)].itemSet ~= nil and Config.ShopItemSets[LoadedEntitys[tonumber(invType)].itemSet] ~= nil then
-		return getShopSize(src, owner, invType)
+		return #Config.ShopItemSets[LoadedEntitys[tonumber(invType)].itemSet]
 	else
 		return LoadedEntitys[tonumber(invType)].slots
 	end
@@ -674,101 +428,54 @@ function CreateStoreLog(inventory, item, count, buyer, metadata, itemId)
 end
 
 function DoMerge(source, data, cb)
-	local char = Fetch:CharacterSource(source)
-
-	local item = itemsDatabase[data.name]
-	local cash = char:GetData("Cash")
-
-	local entityFrom = LoadedEntitys[tonumber(data.invTypeFrom)]
-	local entityTo = LoadedEntitys[tonumber(data.invTypeTo)]
-
-	if data.ownerFrom == nil or data.slotFrom == nil or data.invTypeFrom == nil or data.ownerTo == nil or data.slotTo == nil or data.invTypeTo == nil then
-		cb({ reason = "Invalid Move Data" })
-		sendRefreshForClient(source, data.ownerFrom, data.invTypeFrom, data.slotFrom)
-		sendRefreshForClient(source, data.ownerTo, data.invTypeTo, data.slotTo)
-		return
-	end
-
-	if data.countTo <= 0 then
-		cb({ reason = "Can't Move 0 - Naughty Boy" })
-		sendRefreshForClient(source, data.ownerFrom, data.invTypeFrom, data.slotFrom)
-		sendRefreshForClient(source, data.ownerTo, data.invTypeTo, data.slotTo)
-		return
-	end
-
-	if entityFrom.shop then
-		local slotFrom = getShopSlot(source, data.ownerFrom, data.invTypeFrom, data.slotFrom)
-		local cost = math.ceil(((slotFrom?.Price or item.price) * tonumber(data.countTo)))
-		local paymentType = (cash >= cost and 'cash' or (Banking.Balance:Has(char:GetData("BankAccount"), cost) and 'bank' or nil))
-		if entityFrom.free or paymentType ~= nil then
-			if -- Check if the item is either not a gun, or if it is that they have a Weapons license
-				(item.type ~= 2
-				or (
-					item.type == 2
-					and (not item.requiresLicense or item.requiresLicense and Weapons:IsEligible(source))
-				))
-				and (not item.qualification or hasValue(char:GetData("Qualifications"), item.qualification))
-			then
-				local paid = cost == 0 or entityFrom.free
-
-				if not paid then
-					if paymentType == 'cash' then
-						paid = Wallet:Modify(source, -(math.abs(cost)))
-					else
-						paid = Banking.Balance:Charge(char:GetData("BankAccount"), cost, {
-							type = 'bill',
-							title = 'Store Purchase',
-							description = string.format('Bought x%s %s', data.countTo, item.label),
-							data = {}
-						})
-						Phone.Notification:Add(source, "Bill Payment Successful", false, os.time(), 3000, "bank", {})
-					end
-
-					if paid then
-						local bonk = storeBankAccounts[tostring(entityFrom.id)]
-						if bank then
-							pendingShopDeposits[bonk] = pendingShopDeposits[bonk] or { amount = 0, transactions = 0 }
-							pendingShopDeposits[bonk].amount += math.floor( (cost * STORE_SHARE_AMOUNT) )
-							pendingShopDeposits[bonk].transactions += 1
-						end
-
-						pendingShopDeposits[_govAccount] = pendingShopDeposits[_govAccount] or { amount = 0, transactions = 0, tax = true }
-						pendingShopDeposits[_govAccount].amount += math.ceil(cost * (1.0 - STORE_SHARE_AMOUNT))
-						pendingShopDeposits[_govAccount].transactions += 1
-					end
-				end
-
-				if paid then
-					local insData = INVENTORY:AddItem(char:GetData("SID"), data.name, data.countTo, {}, data.invTypeTo, false, false, false, false, data.slotTo, false, false, false, true)
-					CreateStoreLog(data.ownerFrom, data.name, data.countTo or 1, char:GetData("SID"), insData.MetaData, 0)
-				end
-
-				sendRefreshForClient(source, data.ownerFrom, data.invTypeFrom, data.slotFrom)
-				sendRefreshForClient(source, data.ownerTo, data.invTypeTo, data.slotTo)
-				return cb({ success = true })
-			else
-				sendRefreshForClient(source, data.ownerFrom, data.invTypeFrom, data.slotFrom)
-				sendRefreshForClient(source, data.ownerTo, data.invTypeTo, data.slotTo)
-				cb({ reason = "Ineligible To Purchase Item" })
-			end
-		else
+	CreateThread(function()
+		local player = Fetch:Source(source)
+		local char = player:GetData("Character")
+	
+		local item = itemsDatabase[data.name]
+		local cash = char:GetData("Cash")
+	
+		local entityFrom = LoadedEntitys[tonumber(data.invTypeFrom)]
+		local entityTo = LoadedEntitys[tonumber(data.invTypeTo)]
+	
+		local invWeight = Inventory.Items:GetWeights(data.ownerTo, data.invTypeTo)
+		local totWeight = invWeight + (data.countTo * itemsDatabase[data.name].weight)
+	
+		if data.ownerFrom == nil or data.slotFrom == nil or data.invTypeFrom == nil or data.ownerTo == nil or data.slotTo == nil or data.invTypeTo == nil then
+			cb({ reason = "Invalid Move Data" })
 			sendRefreshForClient(source, data.ownerFrom, data.invTypeFrom, data.slotFrom)
 			sendRefreshForClient(source, data.ownerTo, data.invTypeTo, data.slotTo)
-			cb({ reason = "Not Enough Cash" })
+			return
 		end
-	elseif entityFrom.playerShop and data.ownerFrom ~= data.ownerTo and data.invTypeFrom ~= data.invTypeTo then
-		if _playerShops[data.ownerFrom] then
-			local isMod = isShopModerator(data.ownerFrom, source)
-			local slotFrom = INVENTORY:GetSlot(data.ownerFrom, data.slotFrom, data.invTypeFrom)
-			local slotTo = INVENTORY:GetSlot(data.ownerTo, data.slotTo, data.invTypeTo)
-
-			if slotFrom ~= nil then
-				local cost = math.ceil((slotFrom.Price * tonumber(data.countTo)))
-				local paymentType = (cash >= cost and 'cash' or (Banking.Balance:Has(char:GetData("BankAccount"), cost) and 'bank' or nil))
 	
-				if cost == 0 or paymentType ~= nil or isMod then
-					local paid = cost == 0 or isMod
-
+		if totWeight > getCapacity(data.invTypeTo, data.vehClassTo, data.vehModelTo, data.capacityOverrideTo) and data.ownerFrom ~= data.ownerTo then
+			cb({ reason = "Inventory Over Weight" })
+			sendRefreshForClient(source, data.ownerTo, data.invTypeTo, data.slotTo)
+			sendRefreshForClient(source, data.ownerFrom, data.invTypeFrom, data.slotFrom)
+			return
+		end
+	
+		if data.countTo <= 0 then
+			cb({ reason = "Can't Move 0 - Naughty Boy" })
+			sendRefreshForClient(source, data.ownerFrom, data.invTypeFrom, data.slotFrom)
+			sendRefreshForClient(source, data.ownerTo, data.invTypeTo, data.slotTo)
+			return
+		end
+	
+		if entityFrom.shop then
+			local cost = math.ceil((item.price * tonumber(data.countTo)))
+			local paymentType = (cash >= cost and 'cash' or (Banking.Balance:Has(char:GetData("BankAccount"), cost) and 'bank' or nil))
+			if entityFrom.free or paymentType ~= nil then
+				if -- Check if the item is either not a gun, or if it is that they have a Weapons license
+					(item.type ~= 2
+					or (
+						item.type == 2
+						and (not item.requiresLicense or item.requiresLicense and Weapons:IsEligible(source))
+					))
+					and (not item.qualification or hasValue(char:GetData("Qualifications"), item.qualification))
+				then
+					local paid = entityFrom.free
+	
 					if not paid then
 						if paymentType == 'cash' then
 							paid = Wallet:Modify(source, -(math.abs(cost)))
@@ -776,555 +483,387 @@ function DoMerge(source, data, cb)
 							paid = Banking.Balance:Charge(char:GetData("BankAccount"), cost, {
 								type = 'bill',
 								title = 'Store Purchase',
-								description = string.format('Bought x%s %s From %s', data.countTo, item.label, _playerShops[data.ownerFrom].name),
+								description = string.format('Bought x%s %s', data.countTo, item.label),
 								data = {}
 							})
-							Phone.Notification:Add(source, "Bill Payment Successful", string.format('Bought x%s %s From %s', data.countTo, item.label, _playerShops[data.ownerFrom].name), os.time(), 3000, "bank", {})
+							Phone.Notification:Add(source, "Bill Payment Successful", false, os.time() * 1000, 3000, "bank", {})
 						end
-					end
-
-					if paid then
-						if not isMod then
-							pendingShopDeposits[_playerShops[data.ownerFrom].bank] = pendingShopDeposits[_playerShops[data.ownerFrom].bank] or { amount = 0, transactions = 0 }
-							pendingShopDeposits[_playerShops[data.ownerFrom].bank].amount += math.floor( (cost * STORE_SHARE_AMOUNT) )
-							pendingShopDeposits[_playerShops[data.ownerFrom].bank].transactions += 1
+	
+						if paid then
+							pendingShopDeposits[storeBankAccounts[entityFrom.id]] = pendingShopDeposits[storeBankAccounts[entityFrom.id]] or { amount = 0, transactions = 0 }
+							pendingShopDeposits[storeBankAccounts[entityFrom.id]].amount += math.floor( (cost * STORE_SHARE_AMOUNT) )
+							pendingShopDeposits[storeBankAccounts[entityFrom.id]].transactions += 1
 	
 							pendingShopDeposits[_govAccount] = pendingShopDeposits[_govAccount] or { amount = 0, transactions = 0, tax = true }
 							pendingShopDeposits[_govAccount].amount += math.ceil(cost * (1.0 - STORE_SHARE_AMOUNT))
 							pendingShopDeposits[_govAccount].transactions += 1
 						end
-
-						local ids = MySQL.rawExecute.await("SELECT id, owner, type, slot FROM inventory WHERE slot = ? AND owner = ? and type = ? LIMIT ?", {
-							data.slotFrom,
-							tostring(data.ownerFrom),
-							data.invTypeFrom,
-							data.countTo,
-						});
-			
-						local idsFrom = {}
-						for k, v in ipairs(ids) do
-							table.insert(idsFrom, v.id)
-						end
-			
-						MySQL.update.await('UPDATE inventory SET slot = ?, owner = ?, type = ?, price = ? WHERE id IN (' .. table.concat(idsFrom, ', ') .. ')', {
-							data.slotTo,
-							tostring(data.ownerTo),
-							data.invTypeTo,
-							0
-						})
-						
-						if WEAPON_PROPS[item.weapon or item.name] ~= nil then
-							_refreshAttchs[data.ownerTo] = source
-						end
-
-						if item.gangChain ~= nil then
-							_refreshGangChain[data.ownerTo] = source
-						end
-				
-						-- This might be bad, but idk how else to do this other than just not and deal with client UI being incorrect
-						getInventory(source, data.ownerFrom, data.invTypeFrom)
-						getInventory(source, data.ownerTo, data.invTypeTo)
-					
-						sendRefreshForClient(source, data.ownerFrom, data.invTypeFrom, data.slotFrom)
-						sendRefreshForClient(source, data.ownerTo, data.invTypeTo, data.slotTo)
-
-						return cb({ success = true })
-					else
-						TriggerClientEvent("StoreFailedPurchase", source, {
-							player = {
-								inventory = _cachedInvs[string.format("%s-%s", data.ownerTo, data.invTypeTo)],
-							},
-							secondary = {
-								inventory = _cachedInvs[string.format("%s-%s", data.ownerFrom, data.invTypeFrom)],
-							}
-						})
-						sendRefreshForClient(source, data.ownerFrom, data.invTypeFrom, data.slotFrom)
-						sendRefreshForClient(source, data.ownerTo, data.invTypeTo, data.slotTo)
-						return cb({ reason = "Payment Failed" })
 					end
-				else
-					TriggerClientEvent("StoreFailedPurchase", source, {
-						player = {
-							inventory = _cachedInvs[string.format("%s-%s", data.ownerTo, data.invTypeTo)],
-						},
-						secondary = {
-							inventory = _cachedInvs[string.format("%s-%s", data.ownerFrom, data.invTypeFrom)],
-						}
-					})
+	
+					if paid then
+						local insData = Inventory:CreateItem(char:GetData("SID"), data.name, data.countTo, data.slotTo, {}, data.invTypeTo, false)
+						CreateStoreLog(data.ownerFrom, data.name, data.countTo or 1, char:GetData("SID"), insData.metadata, insData.id)
+					end
+	
 					sendRefreshForClient(source, data.ownerFrom, data.invTypeFrom, data.slotFrom)
 					sendRefreshForClient(source, data.ownerTo, data.invTypeTo, data.slotTo)
-					return cb({ reason = "You Cannot Afford That" })
+					return cb({ success = true })
+				else
+					sendRefreshForClient(source, data.ownerFrom, data.invTypeFrom, data.slotFrom)
+					sendRefreshForClient(source, data.ownerTo, data.invTypeTo, data.slotTo)
+					cb({ reason = "Ineligible To Purchase Item" })
 				end
 			else
-				TriggerClientEvent("StoreFailedPurchase", source, {
-					player = {
-						inventory = _cachedInvs[string.format("%s-%s", data.ownerTo, data.invTypeTo)],
-					},
-					secondary = {
-						inventory = _cachedInvs[string.format("%s-%s", data.ownerFrom, data.invTypeFrom)],
-					}
-				})
 				sendRefreshForClient(source, data.ownerFrom, data.invTypeFrom, data.slotFrom)
 				sendRefreshForClient(source, data.ownerTo, data.invTypeTo, data.slotTo)
-				return cb({ reason = "Invalid Item" })
+				cb({ reason = "Not Enough Cash" })
 			end
 		else
-			TriggerClientEvent("StoreFailedPurchase", source, {
-				player = {
-					inventory = _cachedInvs[string.format("%s-%s", data.ownerTo, data.invTypeTo)],
-				},
-				secondary = {
-					inventory = _cachedInvs[string.format("%s-%s", data.ownerFrom, data.invTypeFrom)],
-				}
-			})
-			sendRefreshForClient(source, data.ownerFrom, data.invTypeFrom, data.slotFrom)
-			sendRefreshForClient(source, data.ownerTo, data.invTypeTo, data.slotTo)
-			return cb({ reason = "Invalid Shop" })
-		end
-	else
-		if entityTo.playerShop and not isShopModerator(data.ownerFrom, source) then
-			sendRefreshForClient(source, data.ownerFrom, data.invTypeFrom, data.slotFrom)
-			sendRefreshForClient(source, data.ownerTo, data.invTypeTo, data.slotTo)
-			return cb({ reason = "Cannot Do That" })
-		end
+			local slotFrom = Inventory:GetSlot(data.ownerFrom, data.slotFrom, data.invTypeFrom)
+			local slotTo = Inventory:GetSlot(data.ownerTo, data.slotTo, data.invTypeTo)
 
-		local slotFrom = INVENTORY:GetSlot(data.ownerFrom, data.slotFrom, data.invTypeFrom)
-		local slotTo = INVENTORY:GetSlot(data.ownerTo, data.slotTo, data.invTypeTo)
+			if slotFrom == nil or slotTo == nil then
+				cb({ reason = "Item No Longer In That Slot" })
+				sendRefreshForClient(source, data.ownerFrom, data.invTypeFrom, data.slotFrom)
+				sendRefreshForClient(source, data.ownerTo, data.invTypeTo, data.slotTo)
+				return
+			end
 
-		if slotFrom == nil or slotTo == nil then
-			cb({ reason = "Item No Longer In That Slot" })
-			sendRefreshForClient(source, data.ownerFrom, data.invTypeFrom, data.slotFrom)
-			sendRefreshForClient(source, data.ownerTo, data.invTypeTo, data.slotTo)
-			return
-		end
-		
-		if entityFrom.playerShop and slotFrom?.Price ~= slotTo?.Price then
-			sendRefreshForClient(source, data.ownerFrom, data.invTypeFrom, data.slotFrom)
-			sendRefreshForClient(source, data.ownerTo, data.invTypeTo, data.slotTo)
-			return cb({ reason = "Item Price Mismatch, Cannot Merge" })
-		end
-
-		local ids = MySQL.rawExecute.await("SELECT id, owner, type, slot FROM inventory WHERE slot = ? AND owner = ? AND type = ? LIMIT ?", {
-			data.slotFrom,
-			tostring(data.ownerFrom),
-			data.invTypeFrom,
-			data.countTo,
-		});
-
-		local idsFrom = {}
-		for k, v in ipairs(ids) do
-			table.insert(idsFrom, v.id)
-		end
-
-		if #idsFrom > 0 then
-			MySQL.update.await('UPDATE inventory SET slot = ?, owner = ?, type = ? WHERE id IN (' .. table.concat(idsFrom, ', ') .. ')', {
+			MySQL.query.await('UPDATE inventory SET slot = ?, name = ?, dropped = ? WHERE name = ? AND slot = ? AND item_id = ?', {
 				data.slotTo,
-				tostring(data.ownerTo),
-				data.invTypeTo,
+				string.format("%s-%s", data.ownerTo, data.invTypeTo),
+				data.invTypeTo == 10 and 1 or 0,
+				string.format("%s-%s", data.ownerFrom, data.invTypeFrom),
+				data.slotFrom,
+				data.name,
 			})
-		end
-		
-		if ((data.ownerFrom ~= data.ownerTo) or (data.invTypeFrom ~= data.invTypeTo)) then
-			if data.invTypeFrom == 1 then
-				local char = Fetch:SID(data.ownerFrom)
-
-				if data.ownerFrom == data.ownerTo then
-					if item.type == 2 then
-						if (not item.isStackable and item.isStackable ~= -1) or data.countTo == slotFrom.Count then
+			
+			if data.ownerFrom ~= data.ownerTo then
+				if data.invTypeFrom == 1 then
+					local plyr = Fetch:SID(data.ownerFrom)
+	
+					if data.ownerFrom == data.ownerTo then
+						if item.type == 2 then
+							if (not item.isStackable and item.isStackable ~= -1) or data.countTo == slotFrom.Count then
+								TriggerClientEvent(
+									"Weapons:Client:Move",
+									plyr:GetData("Source"),
+									data.slotFrom,
+									data.slotTo
+								)
+							end
+							
+							if item.isThrowable then
+								TriggerClientEvent(
+									"Weapons:Client:UpdateCount",
+									plyr:GetData("Source"),
+									data.slotFrom,
+									(slotFrom.Count - data.countTo)
+								)
+								TriggerClientEvent(
+									"Weapons:Client:UpdateCount",
+									plyr:GetData("Source"),
+									data.slotTo,
+									((slotTo?.Count or 0) + data.countTo)
+								)
+							end
+						elseif item.type == 10 then
 							TriggerClientEvent(
-								"Weapons:Client:Move",
-								char:GetData("Source"),
+								"Inventory:Container:Move",
+								plyr:GetData("Source"),
 								data.slotFrom,
 								data.slotTo
 							)
 						end
-						
-						if item.isThrowable then
-							TriggerClientEvent(
-								"Weapons:Client:UpdateCount",
-								char:GetData("Source"),
-								data.slotFrom,
-								(slotFrom.Count - data.countTo)
-							)
-							TriggerClientEvent(
-								"Weapons:Client:UpdateCount",
-								char:GetData("Source"),
-								data.slotTo,
-								((slotTo?.Count or 0) + data.countTo)
-							)
+					else
+						if not item.isStackable or data.countTo == slotFrom.Count then
+							if item.type == 2 then
+								TriggerClientEvent(
+									"Weapons:Client:Remove",
+									plyr:GetData("Source"),
+									slotFrom,
+									data.slotFrom,
+									{
+										owner = data.ownerTo,
+										type = data.invTypeTo,
+										slot = data.slotTo,
+									}
+								)
+							elseif item.type == 10 then
+								TriggerClientEvent(
+									"Inventory:Container:Remove",
+									plyr:GetData("Source"),
+									slotFrom,
+									data.slotFrom
+								)
+							end
+						else
+							if item.isThrowable then
+								TriggerClientEvent(
+									"Weapons:Client:UpdateCount",
+									plyr:GetData("Source"),
+									data.slotFrom,
+									(slotFrom.Count - data.countTo)
+								)
+							end
 						end
-					elseif item.type == 10 then
+					end
+				end
+		
+				if data.invTypeTo == 1 then
+					local plyr = Fetch:SID(data.ownerTo)
+					if item.isThrowable then
 						TriggerClientEvent(
-							"Inventory:Container:Move",
-							char:GetData("Source"),
-							data.slotFrom,
-							data.slotTo
+							"Weapons:Client:UpdateCount",
+							plyr:GetData("Source"),
+							data.slotTo,
+							((slotTo?.Count or 0) + data.countTo)
 						)
 					end
-				else
-					if not item.isStackable or data.countTo == slotFrom.Count then
-						if item.type == 2 then
-							TriggerClientEvent(
-								"Weapons:Client:Remove",
-								char:GetData("Source"),
-								slotFrom,
-								data.slotFrom,
-								{
-									owner = data.ownerTo,
-									type = data.invTypeTo,
-									slot = data.slotTo,
-								}
-							)
-						elseif item.type == 10 then
-							TriggerClientEvent(
-								"Inventory:Container:Remove",
-								char:GetData("Source"),
-								slotFrom,
-								data.slotFrom
-							)
-						end
-					else
-						if item.isThrowable then
-							TriggerClientEvent(
-								"Weapons:Client:UpdateCount",
-								char:GetData("Source"),
-								data.slotFrom,
-								(slotFrom.Count - data.countTo)
-							)
-						end
-					end
 				end
-			end
-	
-			if data.invTypeTo == 1 then
-				local char = Fetch:SID(data.ownerTo)
-				if item.isThrowable then
-					TriggerClientEvent(
-						"Weapons:Client:UpdateCount",
-						char:GetData("Source"),
-						data.slotTo,
-						((slotTo?.Count or 0) + data.countTo)
-					)
+
+				if data.inventory.position ~= nil then
+					CreateDZIfNotExist(source, data.inventory.position)
 				end
 			end
 
-			if data.inventory.position ~= nil then
-				CreateDZIfNotExist(source, data.inventory.position)
+			if data.ownerFrom ~= data.ownerTo and WEAPON_PROPS[item.name] ~= nil then
+				_refreshAttchs[data.ownerFrom] = source
+				_refreshAttchs[data.ownerTo] = source
 			end
+
+			sendRefreshForClient(source, data.ownerFrom, data.invTypeFrom, data.slotFrom)
+			sendRefreshForClient(source, data.ownerTo, data.invTypeTo, data.slotTo)
+
+			return cb({ success = true })
 		end
-
-		if ((data.ownerFrom ~= data.ownerTo) or (data.invTypeFrom ~= data.invTypeTo)) and WEAPON_PROPS[item.weapon or item.name] ~= nil then
-			_refreshAttchs[data.ownerFrom] = source
-			_refreshAttchs[data.ownerTo] = source
-		end
-
-		if ((data.ownerFrom ~= data.ownerTo) or (data.invTypeFrom ~= data.invTypeTo)) and item.gangChain ~= nil then
-			_refreshGangChain[data.ownerFrom] = source
-			_refreshGangChain[data.ownerTo] = source
-		end
-
-		sendRefreshForClient(source, data.ownerFrom, data.invTypeFrom, data.slotFrom)
-		sendRefreshForClient(source, data.ownerTo, data.invTypeTo, data.slotTo)
-
-		return cb({ success = true })
-	end
+	end)
 end
 
 function DoSwap(source, data, cb)
-	local char = Fetch:CharacterSource(source)
-
-	local item = itemsDatabase[data.name]
-	local cash = char:GetData("Cash")
-
-	local entityFrom = LoadedEntitys[tonumber(data.invTypeFrom)]
-	local entityTo = LoadedEntitys[tonumber(data.invTypeTo)]
-
-	if data.ownerFrom == nil or data.slotFrom == nil or data.invTypeFrom == nil or data.ownerTo == nil or data.slotTo == nil or data.invTypeTo == nil then
-		cb({ reason = "Invalid Move Data" })
-		sendRefreshForClient(source, data.ownerFrom, data.invTypeFrom, data.slotFrom)
-		sendRefreshForClient(source, data.ownerTo, data.invTypeTo, data.slotTo)
-		return
-	end
-
-	if data.countTo <= 0 then
-		cb({ reason = "Can't Move 0 - Naughty Boy" })
-		sendRefreshForClient(source, data.ownerFrom, data.invTypeFrom, data.slotFrom)
-		sendRefreshForClient(source, data.ownerTo, data.invTypeTo, data.slotTo)
-		return
-	end
-
-	if entityFrom.shop or (entityFrom.playerShop and ((data.ownerFrom ~= data.ownerTo and data.invTypeFrom ~= data.invTypeTo) or not isShopModerator(data.ownerFrom, source))) then
-		cb({ reason = "Illegal Operation" })
-		sendRefreshForClient(source, data.ownerFrom, data.invTypeFrom, data.slotFrom)
-		sendRefreshForClient(source, data.ownerTo, data.invTypeTo, data.slotTo)
-		return
-	else
-		local slotFrom = INVENTORY:GetSlot(data.ownerFrom, data.slotFrom, data.invTypeFrom)
-		local slotTo = INVENTORY:GetSlot(data.ownerTo, data.slotTo, data.invTypeTo)
-
-		if slotFrom == nil or slotTo == nil then
-			cb({ reason = "Item No Longer In That Slot" })
+	CreateThread(function()
+		local player = Fetch:Source(source)
+		local char = player:GetData("Character")
+	
+		local item = itemsDatabase[data.name]
+		local cash = char:GetData("Cash")
+	
+		local entityFrom = LoadedEntitys[tonumber(data.invTypeFrom)]
+		local entityTo = LoadedEntitys[tonumber(data.invTypeTo)]
+	
+		local invWeight = Inventory.Items:GetWeights(data.ownerTo, data.invTypeTo)
+		local totWeight = invWeight + (data.countTo * itemsDatabase[data.name].weight)
+	
+		if data.ownerFrom == nil or data.slotFrom == nil or data.invTypeFrom == nil or data.ownerTo == nil or data.slotTo == nil or data.invTypeTo == nil then
+			cb({ reason = "Invalid Move Data" })
 			sendRefreshForClient(source, data.ownerFrom, data.invTypeFrom, data.slotFrom)
 			sendRefreshForClient(source, data.ownerTo, data.invTypeTo, data.slotTo)
 			return
 		end
+	
+		if totWeight > getCapacity(data.invTypeTo, data.vehClassTo, data.vehModelTo, data.capacityOverrideTo) and data.ownerFrom ~= data.ownerTo then
+			cb({ reason = "Inventory Over Weight" })
+			sendRefreshForClient(source, data.ownerTo, data.invTypeTo, data.slotTo)
+			sendRefreshForClient(source, data.ownerFrom, data.invTypeFrom, data.slotFrom)
+			return
+		end
+	
+		if data.countTo <= 0 then
+			cb({ reason = "Can't Move 0 - Naughty Boy" })
+			sendRefreshForClient(source, data.ownerFrom, data.invTypeFrom, data.slotFrom)
+			sendRefreshForClient(source, data.ownerTo, data.invTypeTo, data.slotTo)
+			return
+		end
+	
+		if entityFrom.shop then
+			cb({ reason = "Illegal Operation" })
+			sendRefreshForClient(source, data.ownerFrom, data.invTypeFrom, data.slotFrom)
+			sendRefreshForClient(source, data.ownerTo, data.invTypeTo, data.slotTo)
+			return
+		else
+			local slotFrom = Inventory:GetSlot(data.ownerFrom, data.slotFrom, data.invTypeFrom)
+			local slotTo = Inventory:GetSlot(data.ownerTo, data.slotTo, data.invTypeTo)
 
-		local ids = MySQL.rawExecute.await("SELECT id, owner, type, slot FROM inventory WHERE (slot = ? AND owner = ? AND type = ?) OR (slot = ? AND owner = ? AND type = ?)", {
-			data.slotFrom,
-			tostring(data.ownerFrom),
-			data.invTypeFrom,
-			data.slotTo,
-			tostring(data.ownerTo),
-			data.invTypeTo,
-		});
-
-		local idsFrom = {}
-		local idsTo = {}
-
-		for k, v in ipairs(ids) do
-			if v.owner == tostring(data.ownerFrom) and v.type == data.invTypeFrom and v.slot == data.slotFrom then
-				table.insert(idsFrom, v.id)
-			else
-				table.insert(idsTo, v.id)
+			if slotFrom == nil or slotTo == nil then
+				cb({ reason = "Item No Longer In That Slot" })
+				sendRefreshForClient(source, data.ownerFrom, data.invTypeFrom, data.slotFrom)
+				sendRefreshForClient(source, data.ownerTo, data.invTypeTo, data.slotTo)
+				return
 			end
-		end
-
-		local queries = {}
-
-		if #idsFrom > 0 then
-			table.insert(queries, {
-				query = "UPDATE inventory SET slot = ?, owner = ?, type = ? WHERE id IN (" .. table.concat(idsFrom, ', ') .. ")",
-				values = {
-					data.slotTo,
-					tostring(data.ownerTo),
-					data.invTypeTo,
-				},
+	
+			MySQL.query.await('UPDATE inventory SET slot = ?, name = ?, dropped = ? WHERE name = ? AND slot = ?', {
+				data.slotTo,
+				string.format("%s-%s-PH-%s", data.ownerTo, data.invTypeTo, data.slotTo),
+				data.invTypeTo == 10 and 1 or 0,
+				string.format("%s-%s", data.ownerFrom, data.invTypeFrom),
+				data.slotFrom,
 			})
-		end
 
-		if #idsTo > 0 then
-			table.insert(queries, {
-				query = "UPDATE inventory SET slot = ?, owner = ?, type = ? WHERE id IN (" .. table.concat(idsTo, ', ') .. ")",
-				values = {
-					data.slotFrom,
-					tostring(data.ownerFrom),
-					data.invTypeFrom,
-				},
+			MySQL.query.await('UPDATE inventory SET slot = ?, name = ?, dropped = ? WHERE name = ? AND slot = ?', {
+				data.slotFrom,
+				string.format("%s-%s", data.ownerFrom, data.invTypeFrom),
+				data.invTypeFrom == 10 and 1 or 0,
+				string.format("%s-%s", data.ownerTo, data.invTypeTo),
+				data.slotTo,
 			})
-		end
+			
+			MySQL.query.await('UPDATE inventory SET name = ? WHERE name = ?', {
+				string.format("%s-%s", data.ownerTo, data.invTypeTo),
+				string.format("%s-%s-PH-%s", data.ownerTo, data.invTypeTo, data.slotTo),
+			})
+			
 
-		if #queries > 0 then
-			MySQL.transaction.await(queries)
-		end
+			if data.ownerFrom ~= data.ownerTo then
 
-		if (data.ownerFrom ~= data.ownerTo) or (data.invTypeFrom ~= data.invTypeTo) then
-
-			if data.invTypeFrom == 1 then
-				local char = Fetch:SID(data.ownerFrom)
-
-				if (data.ownerFrom == data.ownerTo) and (data.invTypeFrom == data.invTypeTo) then -- Within Same Inventory
-					if item.type == 2 then
-						if (not item.isStackable and item.isStackable ~= -1) or data.countTo == slotFrom.Count then
+				if data.invTypeFrom == 1 then
+					local plyr = Fetch:SID(data.ownerFrom)
+	
+					if data.ownerFrom == data.ownerTo then
+						if item.type == 2 then
+							if (not item.isStackable and item.isStackable ~= -1) or data.countTo == slotFrom.Count then
+								TriggerClientEvent(
+									"Weapons:Client:Move",
+									plyr:GetData("Source"),
+									data.slotFrom,
+									data.slotTo
+								)
+							end
+							
+							if item.isThrowable then
+								TriggerClientEvent(
+									"Weapons:Client:UpdateCount",
+									plyr:GetData("Source"),
+									data.slotFrom,
+									(slotFrom.Count - data.countTo)
+								)
+								TriggerClientEvent(
+									"Weapons:Client:UpdateCount",
+									plyr:GetData("Source"),
+									data.slotTo,
+									((slotTo?.Count or 0) + data.countTo)
+								)
+							end
+						elseif item.type == 10 then
 							TriggerClientEvent(
-								"Weapons:Client:Move",
-								char:GetData("Source"),
+								"Inventory:Container:Move",
+								plyr:GetData("Source"),
 								data.slotFrom,
 								data.slotTo
 							)
 						end
-						
-						if item.isThrowable then
-							TriggerClientEvent(
-								"Weapons:Client:UpdateCount",
-								char:GetData("Source"),
-								data.slotFrom,
-								(slotFrom.Count - data.countTo)
-							)
-							TriggerClientEvent(
-								"Weapons:Client:UpdateCount",
-								char:GetData("Source"),
-								data.slotTo,
-								((slotTo?.Count or 0) + data.countTo)
-							)
+					else
+						if not item.isStackable or data.countTo == slotFrom.Count then
+							if item.type == 2 then
+								TriggerClientEvent(
+									"Weapons:Client:Remove",
+									plyr:GetData("Source"),
+									slotFrom,
+									data.slotFrom,
+									{
+										owner = data.ownerTo,
+										type = data.invTypeTo,
+										slot = data.slotTo,
+									}
+								)
+							elseif item.type == 10 then
+								TriggerClientEvent(
+									"Inventory:Container:Remove",
+									plyr:GetData("Source"),
+									slotFrom,
+									data.slotFrom
+								)
+							end
+						else
+							if item.isThrowable then
+								TriggerClientEvent(
+									"Weapons:Client:UpdateCount",
+									plyr:GetData("Source"),
+									data.slotFrom,
+									(slotFrom.Count - data.countTo)
+								)
+							end
 						end
-					elseif item.type == 10 then
+					end
+				end
+		
+				if data.invTypeTo == 1 then
+					local plyr = Fetch:SID(data.ownerTo)
+					if item.isThrowable then
 						TriggerClientEvent(
-							"Inventory:Container:Move",
-							char:GetData("Source"),
-							data.slotFrom,
-							data.slotTo
+							"Weapons:Client:UpdateCount",
+							plyr:GetData("Source"),
+							data.slotTo,
+							((slotTo?.Count or 0) + data.countTo)
 						)
 					end
-				else
-					if not item.isStackable or data.countTo == slotFrom.Count then
-						if item.type == 2 then
-							TriggerClientEvent(
-								"Weapons:Client:Remove",
-								char:GetData("Source"),
-								slotFrom,
-								data.slotFrom,
-								{
-									owner = data.ownerTo,
-									type = data.invTypeTo,
-									slot = data.slotTo,
-								}
-							)
-						elseif item.type == 10 then
-							TriggerClientEvent(
-								"Inventory:Container:Remove",
-								char:GetData("Source"),
-								slotFrom,
-								data.slotFrom
-							)
-						end
-					else
-						if item.isThrowable then
-							TriggerClientEvent(
-								"Weapons:Client:UpdateCount",
-								char:GetData("Source"),
-								data.slotFrom,
-								(slotFrom.Count - data.countTo)
-							)
-						end
-					end
 				end
-			end
-	
-			if data.invTypeTo == 1 then
-				local char = Fetch:SID(data.ownerTo)
-				if item.isThrowable then
-					TriggerClientEvent(
-						"Weapons:Client:UpdateCount",
-						char:GetData("Source"),
-						data.slotTo,
-						((slotTo?.Count or 0) + data.countTo)
-					)
+
+				if data.inventory.position ~= nil then
+					CreateDZIfNotExist(source, data.inventory.position)
 				end
 			end
 
-			if data.inventory.position ~= nil then
-				CreateDZIfNotExist(source, data.inventory.position)
+			if data.ownerFrom ~= data.ownerTo and WEAPON_PROPS[item.name] ~= nil then
+				_refreshAttchs[data.ownerFrom] = source
+				_refreshAttchs[data.ownerTo] = source
 			end
+
+			sendRefreshForClient(source, data.ownerFrom, data.invTypeFrom, data.slotFrom)
+			sendRefreshForClient(source, data.ownerTo, data.invTypeTo, data.slotTo)
+
+			return cb({ success = true })
 		end
-
-		if ((data.ownerFrom ~= data.ownerTo) or (data.invTypeFrom ~= data.invTypeTo)) and WEAPON_PROPS[item.weapon or item.name] ~= nil then
-			_refreshAttchs[data.ownerFrom] = source
-			_refreshAttchs[data.ownerTo] = source
-		end
-
-		if ((data.ownerFrom ~= data.ownerTo) or (data.invTypeFrom ~= data.invTypeTo)) and item.gangChain ~= nil then
-			_refreshGangChain[data.ownerFrom] = source
-			_refreshGangChain[data.ownerTo] = source
-		end
-
-		sendRefreshForClient(source, data.ownerFrom, data.invTypeFrom, data.slotFrom)
-		sendRefreshForClient(source, data.ownerTo, data.invTypeTo, data.slotTo)
-
-		return cb({ success = true })
-	end
+	end)
 end
 
 function DoMove(source, data, cb)
-	local char = Fetch:CharacterSource(source)
+	CreateThread(function()
+		local player = Fetch:Source(source)
+		local char = player:GetData("Character")
 	
-	local item = itemsDatabase[data.name]
-	local cash = char:GetData("Cash")
-
-	local entityFrom = LoadedEntitys[tonumber(data.invTypeFrom)]
-	local entityTo = LoadedEntitys[tonumber(data.invTypeTo)]
-
-	if data.ownerFrom == nil or data.slotFrom == nil or data.invTypeFrom == nil or data.ownerTo == nil or data.slotTo == nil or data.invTypeTo == nil then
-		cb({ reason = "Invalid Move Data" })
-		sendRefreshForClient(source, data.ownerFrom, data.invTypeFrom, data.slotFrom)
-		sendRefreshForClient(source, data.ownerTo, data.invTypeTo, data.slotTo)
-		return
-	end
-
-	if data.countTo <= 0 then
-		cb({ reason = "Can't Move 0 - Naughty Boy" })
-		sendRefreshForClient(source, data.ownerFrom, data.invTypeFrom, data.slotFrom)
-		sendRefreshForClient(source, data.ownerTo, data.invTypeTo, data.slotTo)
-		return
-	end
-
-	if entityFrom.shop then
-		local slotFrom = getShopSlot(source, data.ownerFrom, data.invTypeFrom, data.slotFrom)
-		local cost = math.ceil(((slotFrom?.Price or item.price) * tonumber(data.countTo)))
-		local paymentType = (cash >= cost and 'cash' or (Banking.Balance:Has(char:GetData("BankAccount"), cost) and 'bank' or nil))
-		if entityFrom.free or paymentType ~= nil then
-			if -- Check if the item is either not a gun, or if it is that they have a Weapons license
-				(item.type ~= 2
-				or (
-					item.type == 2
-					and (not item.requiresLicense or item.requiresLicense and Weapons:IsEligible(source))
-				))
-				and (not item.qualification or hasValue(char:GetData("Qualifications"), item.qualification))
-			then
-				local paid = cost == 0 or entityFrom.free
-				if not paid then
-					if paymentType == 'cash' then
-						paid = Wallet:Modify(source, -(math.abs(cost)))
-					else
-						paid = Banking.Balance:Charge(char:GetData("BankAccount"), cost, {
-							type = 'bill',
-							title = 'Store Purchase',
-							description = string.format('Bought x%s %s', data.countTo, item.label),
-							data = {}
-						})
-						Phone.Notification:Add(source, "Bill Payment Successful", string.format('Bought x%s %s', data.countTo, item.label), os.time(), 3000, "bank", {})
-					end
-
-					if paid then
-						local bonk = storeBankAccounts[entityFrom.id]
-						pendingShopDeposits[bonk] = pendingShopDeposits[bonk] or { amount = 0, transactions = 0 }
-						pendingShopDeposits[bonk].amount += math.floor( (cost * STORE_SHARE_AMOUNT) )
-						pendingShopDeposits[bonk].transactions += 1
-
-						pendingShopDeposits[_govAccount] = pendingShopDeposits[_govAccount] or { amount = 0, transactions = 0, tax = true }
-						pendingShopDeposits[_govAccount].amount += math.ceil(cost * (1.0 - STORE_SHARE_AMOUNT))
-						pendingShopDeposits[_govAccount].transactions += 1
-					end
-				end
-
-				if paid then
-					local insData = INVENTORY:AddItem(char:GetData("SID"), data.name, data.countTo, {}, data.invTypeTo, false, false, false, false, data.slotTo, false, false, false, true)
-					CreateStoreLog(data.ownerFrom, data.name, data.countTo or 1, char:GetData("SID"), insData.MetaData, 0)
-				end
-
-				if ((data.ownerFrom ~= data.ownerTo) or (data.invTypeFrom ~= data.invTypeTo)) and WEAPON_PROPS[item.weapon or item.name] ~= nil then
-					_refreshAttchs[data.ownerFrom] = source
-					_refreshAttchs[data.ownerTo] = source
-				end
-
-				if ((data.ownerFrom ~= data.ownerTo) or (data.invTypeFrom ~= data.invTypeTo)) and item.gangChain ~= nil then
-					_refreshGangChain[data.ownerFrom] = source
-					_refreshGangChain[data.ownerTo] = source
-				end
-
-				sendRefreshForClient(source, data.ownerFrom, data.invTypeFrom, data.slotFrom)
-				sendRefreshForClient(source, data.ownerTo, data.invTypeTo, data.slotTo)
-				return cb({ success = true })
-			else
-				sendRefreshForClient(source, data.ownerFrom, data.invTypeFrom, data.slotFrom)
-				sendRefreshForClient(source, data.ownerTo, data.invTypeTo, data.slotTo)
-				cb({ reason = "Ineligible To Purchase Item" })
-			end
-		else
+		local item = itemsDatabase[data.name]
+		local cash = char:GetData("Cash")
+	
+		local entityFrom = LoadedEntitys[tonumber(data.invTypeFrom)]
+		local entityTo = LoadedEntitys[tonumber(data.invTypeTo)]
+	
+		local invWeight = Inventory.Items:GetWeights(data.ownerTo, data.invTypeTo)
+		local totWeight = invWeight + (data.countTo * itemsDatabase[data.name].weight)
+	
+		if data.ownerFrom == nil or data.slotFrom == nil or data.invTypeFrom == nil or data.ownerTo == nil or data.slotTo == nil or data.invTypeTo == nil then
+			cb({ reason = "Invalid Move Data" })
 			sendRefreshForClient(source, data.ownerFrom, data.invTypeFrom, data.slotFrom)
 			sendRefreshForClient(source, data.ownerTo, data.invTypeTo, data.slotTo)
-			cb({ reason = "Not Enough Cash" })
+			return
 		end
-	elseif entityFrom.playerShop and data.ownerFrom ~= data.ownerTo and data.invTypeFrom ~= data.invTypeTo then
-		if _playerShops[data.ownerFrom] then
-			local isMod = isShopModerator(data.ownerFrom, source)
-			local slotFrom = INVENTORY:GetSlot(data.ownerFrom, data.slotFrom, data.invTypeFrom)
-			local slotTo = INVENTORY:GetSlot(data.ownerTo, data.slotTo, data.invTypeTo)
-
-			if slotFrom ~= nil then
-				local cost = math.ceil((slotFrom.Price * tonumber(data.countTo)))
-				local paymentType = (cash >= cost and 'cash' or (Banking.Balance:Has(char:GetData("BankAccount"), cost) and 'bank' or nil))
-				if cost == 0 or paymentType ~= nil or isMod then
-					local paid = cost == 0 or isMod
+	
+		if totWeight > getCapacity(data.invTypeTo, data.vehClassTo, data.vehModelTo, data.capacityOverrideTo) and data.ownerFrom ~= data.ownerTo then
+			cb({ reason = "Inventory Over Weight" })
+			sendRefreshForClient(source, data.ownerTo, data.invTypeTo, data.slotTo)
+			sendRefreshForClient(source, data.ownerFrom, data.invTypeFrom, data.slotFrom)
+			return
+		end
+	
+		if data.countTo <= 0 then
+			cb({ reason = "Can't Move 0 - Naughty Boy" })
+			sendRefreshForClient(source, data.ownerFrom, data.invTypeFrom, data.slotFrom)
+			sendRefreshForClient(source, data.ownerTo, data.invTypeTo, data.slotTo)
+			return
+		end
+	
+		if entityFrom.shop then
+			local cost = math.ceil((item.price * tonumber(data.countTo)))
+			local paymentType = (cash >= cost and 'cash' or (Banking.Balance:Has(char:GetData("BankAccount"), cost) and 'bank' or nil))
+			if entityFrom.free or paymentType ~= nil then
+				if -- Check if the item is either not a gun, or if it is that they have a Weapons license
+					(item.type ~= 2
+					or (
+						item.type == 2
+						and (not item.requiresLicense or item.requiresLicense and Weapons:IsEligible(source))
+					))
+					and (not item.qualification or hasValue(char:GetData("Qualifications"), item.qualification))
+				then
+					local paid = entityFrom.free
 					if not paid then
 						if paymentType == 'cash' then
 							paid = Wallet:Modify(source, -(math.abs(cost)))
@@ -1332,309 +871,193 @@ function DoMove(source, data, cb)
 							paid = Banking.Balance:Charge(char:GetData("BankAccount"), cost, {
 								type = 'bill',
 								title = 'Store Purchase',
-								description = string.format('Bought x%s %s From %s', data.countTo, item.label, _playerShops[data.ownerFrom].name),
+								description = string.format('Bought x%s %s', data.countTo, item.label),
 								data = {}
 							})
-							Phone.Notification:Add(source, "Bill Payment Successful", string.format('Bought x%s %s From %s', data.countTo, item.label, _playerShops[data.ownerFrom].name), os.time(), 3000, "bank", {})
+							Phone.Notification:Add(source, "Bill Payment Successful", string.format('Bought x%s %s', data.countTo, item.label), os.time() * 1000, 3000, "bank", {})
 						end
-					end
 
-					if paid then
-						if not isMod then
-							pendingShopDeposits[_playerShops[data.ownerFrom].bank] = pendingShopDeposits[_playerShops[data.ownerFrom].bank] or { amount = 0, transactions = 0 }
-							pendingShopDeposits[_playerShops[data.ownerFrom].bank].amount += math.floor( (cost * STORE_SHARE_AMOUNT) )
-							pendingShopDeposits[_playerShops[data.ownerFrom].bank].transactions += 1
+						if paid then
+							pendingShopDeposits[storeBankAccounts[entityFrom.id]] = pendingShopDeposits[storeBankAccounts[entityFrom.id]] or { amount = 0, transactions = 0 }
+							pendingShopDeposits[storeBankAccounts[entityFrom.id]].amount += math.floor( (cost * STORE_SHARE_AMOUNT) )
+							pendingShopDeposits[storeBankAccounts[entityFrom.id]].transactions += 1
 	
 							pendingShopDeposits[_govAccount] = pendingShopDeposits[_govAccount] or { amount = 0, transactions = 0, tax = true }
 							pendingShopDeposits[_govAccount].amount += math.ceil(cost * (1.0 - STORE_SHARE_AMOUNT))
 							pendingShopDeposits[_govAccount].transactions += 1
 						end
-
-						if data.isSplit then
-							local itemIds = MySQL.rawExecute.await('SELECT id FROM inventory WHERE owner = ? AND type = ? AND slot = ? AND item_id = ? ORDER BY id ASC LIMIT ?', {
-								tostring(data.ownerFrom),
-								data.invTypeFrom,
-								tostring(data.slotFrom),
-								data.name,
-								data.countTo
-							})
-
-							local params = {}
-							for k, v in ipairs(itemIds) do
-								table.insert(params, v.id)
-							end
-							
-							if #params > 0 then
-								MySQL.update.await(string.format('UPDATE inventory SET slot = ?, owner = ?, type = ?, price = ? WHERE id IN (%s)', table.concat(params, ',')), {
-									data.slotTo,
-									tostring(data.ownerTo),
-									data.invTypeTo,
-									0
-								})
-							end
-						else
-							local itemIds = MySQL.rawExecute.await('SELECT id FROM inventory WHERE owner = ? AND type = ? AND slot = ? AND item_id = ? ORDER BY id ASC', {
-								tostring(data.ownerFrom),
-								data.invTypeFrom,
-								data.slotFrom,
-								data.name
-							})
-
-							local params = {}
-							for k, v in ipairs(itemIds) do
-								table.insert(params, v.id)
-							end
-							
-							if #params > 0 then
-								MySQL.update.await(string.format('UPDATE inventory SET slot = ?, owner = ?, type = ?, price = ? WHERE id IN (%s)', table.concat(params, ',')), {
-									data.slotTo,
-									tostring(data.ownerTo),
-									data.invTypeTo,
-									0
-								})
-							end
-						end
-
-						
-						if WEAPON_PROPS[item.weapon or item.name] ~= nil then
-							_refreshAttchs[data.ownerTo] = source
-						end
-
-						if item.gangChain ~= nil then
-							_refreshGangChain[data.ownerTo] = source
-						end
-					
-						-- This might be bad, but idk how else to do this other than just not and deal with client UI being incorrect
-						getInventory(source, data.ownerFrom, data.invTypeFrom)
-						getInventory(source, data.ownerTo, data.invTypeTo)
-
-						sendRefreshForClient(source, data.ownerFrom, data.invTypeFrom, data.slotFrom)
-						sendRefreshForClient(source, data.ownerTo, data.invTypeTo, data.slotTo)
-
-						return cb({ success = true })
-					else
-						TriggerClientEvent("StoreFailedPurchase", source, {
-							player = {
-								inventory = _cachedInvs[string.format("%s-%s", data.ownerTo, data.invTypeTo)],
-							},
-							secondary = {
-								inventory = _cachedInvs[string.format("%s-%s", data.ownerFrom, data.invTypeFrom)],
-							}
-						})
-						sendRefreshForClient(source, data.ownerFrom, data.invTypeFrom, data.slotFrom)
-						sendRefreshForClient(source, data.ownerTo, data.invTypeTo, data.slotTo)
-						cb({ reason = "Payment Failed" })
 					end
-				else
-					TriggerClientEvent("StoreFailedPurchase", source, {
-						player = {
-							inventory = _cachedInvs[string.format("%s-%s", data.ownerTo, data.invTypeTo)],
-						},
-						secondary = {
-							inventory = _cachedInvs[string.format("%s-%s", data.ownerFrom, data.invTypeFrom)],
-						}
-					})
+	
+					if paid then
+						local insData = Inventory:CreateItem(char:GetData("SID"), data.name, data.countTo, data.slotTo, {}, data.invTypeTo, false)
+						CreateStoreLog(data.ownerFrom, data.name, data.countTo or 1, char:GetData("SID"), insData.metadata, insData.id)
+					end
+
+					if data.ownerFrom ~= data.ownerTo and WEAPON_PROPS[item.name] ~= nil then
+						_refreshAttchs[data.ownerFrom] = source
+						_refreshAttchs[data.ownerTo] = source
+					end
+	
 					sendRefreshForClient(source, data.ownerFrom, data.invTypeFrom, data.slotFrom)
 					sendRefreshForClient(source, data.ownerTo, data.invTypeTo, data.slotTo)
-					cb({ reason = "You Cannot Afford That" })
+					return cb({ success = true })
+				else
+					sendRefreshForClient(source, data.ownerFrom, data.invTypeFrom, data.slotFrom)
+					sendRefreshForClient(source, data.ownerTo, data.invTypeTo, data.slotTo)
+					cb({ reason = "Ineligible To Purchase Item" })
 				end
 			else
-				TriggerClientEvent("StoreFailedPurchase", source, {
-					player = {
-						inventory = _cachedInvs[string.format("%s-%s", data.ownerTo, data.invTypeTo)],
-					},
-					secondary = {
-						inventory = _cachedInvs[string.format("%s-%s", data.ownerFrom, data.invTypeFrom)],
-					}
-				})
 				sendRefreshForClient(source, data.ownerFrom, data.invTypeFrom, data.slotFrom)
 				sendRefreshForClient(source, data.ownerTo, data.invTypeTo, data.slotTo)
-				return cb({ reason = "Invalid Item" })
+				cb({ reason = "Not Enough Cash" })
 			end
 		else
-			TriggerClientEvent("StoreFailedPurchase", source, {
-				player = {
-					inventory = _cachedInvs[string.format("%s-%s", data.ownerTo, data.invTypeTo)],
-				},
-				secondary = {
-					inventory = _cachedInvs[string.format("%s-%s", data.ownerFrom, data.invTypeFrom)],
-				}
-			})
-			sendRefreshForClient(source, data.ownerFrom, data.invTypeFrom, data.slotFrom)
-			sendRefreshForClient(source, data.ownerTo, data.invTypeTo, data.slotTo)
-			return cb({ reason = "Invalid Shop" })
-		end
-	else
-		if entityTo.playerShop and not isShopModerator(data.ownerFrom, source) then
-			sendRefreshForClient(source, data.ownerFrom, data.invTypeFrom, data.slotFrom)
-			sendRefreshForClient(source, data.ownerTo, data.invTypeTo, data.slotTo)
-			return cb({ reason = "Cannot Do That" })
-		end
+			local slotFrom = Inventory:GetSlot(data.ownerFrom, data.slotFrom, data.invTypeFrom)
+			local slotTo = Inventory:GetSlot(data.ownerTo, data.slotTo, data.invTypeTo)
 
-		local slotFrom = INVENTORY:GetSlot(data.ownerFrom, data.slotFrom, data.invTypeFrom)
-		local slotTo = INVENTORY:GetSlot(data.ownerTo, data.slotTo, data.invTypeTo)
-
-		if slotFrom == nil then
-			cb({ reason = "Item No Longer In That Slot" })
-			sendRefreshForClient(source, data.ownerFrom, data.invTypeFrom, data.slotFrom)
-			sendRefreshForClient(source, data.ownerTo, data.invTypeTo, data.slotTo)
-			return
-		end
-
-		if data.isSplit then
-			local itemIds = MySQL.rawExecute.await('SELECT id FROM inventory WHERE owner = ? AND type = ? AND slot = ? AND item_id = ? ORDER BY id ASC LIMIT ?', {
-				tostring(data.ownerFrom),
-				data.invTypeFrom,
-				data.slotFrom,
-				data.name,
-				data.countTo
-			})
-
-			local params = {}
-			for k, v in ipairs(itemIds) do
-				table.insert(params, v.id)
+			if slotFrom == nil then
+				cb({ reason = "Item No Longer In That Slot" })
+				sendRefreshForClient(source, data.ownerFrom, data.invTypeFrom, data.slotFrom)
+				sendRefreshForClient(source, data.ownerTo, data.invTypeTo, data.slotTo)
+				return
 			end
-			
-			if #params > 0 then
-				MySQL.update.await(string.format('UPDATE inventory SET slot = ?, owner = ?, type = ? WHERE id IN (%s)', table.concat(params, ',')), {
+
+			if data.isSplit then
+				local itemIds = MySQL.query.await('SELECT id FROM inventory WHERE name = ? AND slot = ? AND item_id = ? ORDER BY id ASC LIMIT ?', {
+					string.format("%s-%s", data.ownerFrom, data.invTypeFrom),
+					data.slotFrom,
+					data.name,
+					data.countTo
+				})
+
+				local params = {}
+				for k, v in ipairs(itemIds) do
+					table.insert(params, v.id)
+				end
+				
+				MySQL.query.await(string.format('UPDATE inventory SET slot = ?, name = ?, dropped = ? WHERE id IN (%s)', table.concat(params, ',')), {
 					data.slotTo,
-					tostring(data.ownerTo),
-					data.invTypeTo,
+					string.format("%s-%s", data.ownerTo, data.invTypeTo),
+					data.invTypeTo == 10 and 1 or 0
+				})
+			else
+				MySQL.query.await('UPDATE inventory SET slot = ?, name = ?, dropped = ? WHERE name = ? AND slot = "?" AND item_id = ?', {
+					data.slotTo,
+					string.format("%s-%s", data.ownerTo, data.invTypeTo),
+					(data.invTypeTo == 10 and 1 or 0),
+					string.format("%s-%s", data.ownerFrom, data.invTypeFrom),
+					data.slotFrom,
+					data.name,
 				})
 			end
-		else
-			local itemIds = MySQL.rawExecute.await('SELECT id FROM inventory WHERE owner = ? AND type = ? AND slot = ? AND item_id = ? ORDER BY id ASC', {
-				data.ownerFrom,
-				data.invTypeFrom,
-				data.slotFrom,
-				data.name
-			})
-
-			local params = {}
-			for k, v in ipairs(itemIds) do
-				table.insert(params, v.id)
-			end
 			
-			if #params > 0 then
-				MySQL.update.await(string.format('UPDATE inventory SET slot = ?, owner = ?, type = ? WHERE id IN (%s)', table.concat(params, ',')), {
-					data.slotTo,
-					tostring(data.ownerTo),
-					data.invTypeTo,
-				})
-			end
-		end
-		
-		if (data.ownerFrom ~= data.ownerTo) or (data.invTypeFrom ~= data.invTypeTo) then
-			if data.invTypeFrom == 1 then
-				local char = Fetch:SID(data.ownerFrom)
-
-				if (data.ownerFrom == data.ownerTo) and (data.invTypeFrom == data.invTypeTo) then -- Within Same Inventory
-					if item.type == 2 then
-						if (not item.isStackable and item.isStackable ~= -1) or data.countTo == slotFrom.Count then
+			if data.ownerFrom ~= data.ownerTo then
+				if data.invTypeFrom == 1 then
+					local plyr = Fetch:SID(data.ownerFrom)
+	
+					if data.ownerFrom == data.ownerTo then
+						if item.type == 2 then
+							if (not item.isStackable and item.isStackable ~= -1) or data.countTo == slotFrom.Count then
+								TriggerClientEvent(
+									"Weapons:Client:Move",
+									plyr:GetData("Source"),
+									data.slotFrom,
+									data.slotTo
+								)
+							end
+							
+							if item.isThrowable then
+								TriggerClientEvent(
+									"Weapons:Client:UpdateCount",
+									plyr:GetData("Source"),
+									data.slotFrom,
+									(slotFrom.Count - data.countTo)
+								)
+								TriggerClientEvent(
+									"Weapons:Client:UpdateCount",
+									plyr:GetData("Source"),
+									data.slotTo,
+									((slotTo?.Count or 0) + data.countTo)
+								)
+							end
+						elseif item.type == 10 then
 							TriggerClientEvent(
-								"Weapons:Client:Move",
-								char:GetData("Source"),
+								"Inventory:Container:Move",
+								plyr:GetData("Source"),
 								data.slotFrom,
 								data.slotTo
 							)
 						end
-						
-						if item.isThrowable then
-							TriggerClientEvent(
-								"Weapons:Client:UpdateCount",
-								char:GetData("Source"),
-								data.slotFrom,
-								(slotFrom.Count - data.countTo)
-							)
-							TriggerClientEvent(
-								"Weapons:Client:UpdateCount",
-								char:GetData("Source"),
-								data.slotTo,
-								((slotTo?.Count or 0) + data.countTo)
-							)
+					else
+						if not item.isStackable or data.countTo == slotFrom.Count then
+							if item.type == 2 then
+								TriggerClientEvent(
+									"Weapons:Client:Remove",
+									plyr:GetData("Source"),
+									slotFrom,
+									data.slotFrom,
+									{
+										owner = data.ownerTo,
+										type = data.invTypeTo,
+										slot = data.slotTo,
+									}
+								)
+							elseif item.type == 10 then
+								TriggerClientEvent(
+									"Inventory:Container:Remove",
+									plyr:GetData("Source"),
+									slotFrom,
+									data.slotFrom
+								)
+							end
+						else
+							if item.isThrowable then
+								TriggerClientEvent(
+									"Weapons:Client:UpdateCount",
+									plyr:GetData("Source"),
+									data.slotFrom,
+									(slotFrom.Count - data.countTo)
+								)
+							end
 						end
-					elseif item.type == 10 then
+					end
+				end
+		
+				if data.invTypeTo == 1 then
+					local plyr = Fetch:SID(data.ownerTo)
+					if item.isThrowable then
 						TriggerClientEvent(
-							"Inventory:Container:Move",
-							char:GetData("Source"),
-							data.slotFrom,
-							data.slotTo
+							"Weapons:Client:UpdateCount",
+							plyr:GetData("Source"),
+							data.slotTo,
+							((slotTo?.Count or 0) + data.countTo)
 						)
 					end
-				else
-					if not item.isStackable or data.countTo == slotFrom.Count then
-						if item.type == 2 then
-							TriggerClientEvent(
-								"Weapons:Client:Remove",
-								char:GetData("Source"),
-								slotFrom,
-								data.slotFrom,
-								{
-									owner = data.ownerTo,
-									type = data.invTypeTo,
-									slot = data.slotTo,
-								}
-							)
-						elseif item.type == 10 then
-							TriggerClientEvent(
-								"Inventory:Container:Remove",
-								char:GetData("Source"),
-								slotFrom,
-								data.slotFrom
-							)
-						end
-					else
-						if item.isThrowable then
-							TriggerClientEvent(
-								"Weapons:Client:UpdateCount",
-								char:GetData("Source"),
-								data.slotFrom,
-								(slotFrom.Count - data.countTo)
-							)
-						end
-					end
 				end
-			end
-	
-			if data.invTypeTo == 1 then
-				local char = Fetch:SID(data.ownerTo)
-				if item.isThrowable then
-					TriggerClientEvent(
-						"Weapons:Client:UpdateCount",
-						char:GetData("Source"),
-						data.slotTo,
-						((slotTo?.Count or 0) + data.countTo)
-					)
+
+				if data.inventory.position ~= nil then
+					CreateDZIfNotExist(source, data.inventory.position)
 				end
 			end
 
-			if data.inventory.position ~= nil then
-				CreateDZIfNotExist(source, data.inventory.position)
+			if data.ownerFrom ~= data.ownerTo and WEAPON_PROPS[item.name] ~= nil then
+				_refreshAttchs[data.ownerFrom] = source
+				_refreshAttchs[data.ownerTo] = source
 			end
-		end
+		
+			sendRefreshForClient(source, data.ownerFrom, data.invTypeFrom, data.slotFrom)
+			sendRefreshForClient(source, data.ownerTo, data.invTypeTo, data.slotTo)
 
-		if ((data.ownerFrom ~= data.ownerTo) or (data.invTypeFrom ~= data.invTypeTo)) and WEAPON_PROPS[item.weapon or item.name] ~= nil then
-			_refreshAttchs[data.ownerFrom] = source
-			_refreshAttchs[data.ownerTo] = source
+			return cb({ success = true })
 		end
-
-		if ((data.ownerFrom ~= data.ownerTo) or (data.invTypeFrom ~= data.invTypeTo)) and item.gangChain ~= nil then
-			_refreshGangChain[data.ownerFrom] = source
-			_refreshGangChain[data.ownerTo] = source
-		end
-	
-		sendRefreshForClient(source, data.ownerFrom, data.invTypeFrom, data.slotFrom)
-		sendRefreshForClient(source, data.ownerTo, data.invTypeTo, data.slotTo)
-
-		return cb({ success = true })
-	end
+	end)
 end
 
 function CreateDZIfNotExist(source, coords)
+	local id = string.format("%s:%s", math.ceil(coords.x), math.ceil(coords.y))
 	local route = Player(source).state.currentRoute
-	local id = string.format("%s:%s:%s", math.ceil(coords.x), math.ceil(coords.y), route)
-	if not INVENTORY:DropExists(route, id) then
-		INVENTORY:CreateDropzone(route, coords)
+	if not Inventory:DropExists(route, id) then
+		Inventory:CreateDropzone(route, coords)
 	end
 end
 
@@ -1655,7 +1078,7 @@ function RegisterCallbacks()
 		local dist = #(vector3(myCoords.x, myCoords.y, myCoords.z) - vector3(vehCoords.x, vehCoords.y, vehCoords.z))
 		local lock = GetVehicleDoorLockStatus(veh)
 		if dist < 8 and (lock == 0 or lock == 1) then
-			INVENTORY:OpenSecondary(source, 4, Entity(veh).state.VIN, data.class or false, data.model or false)
+			Inventory:OpenSecondary(source, 4, Entity(veh).state.VIN, data.class or false, data.model or false)
 			cb(true)
 		else
 			cb(false)
@@ -1664,10 +1087,9 @@ function RegisterCallbacks()
 
 	Callbacks:RegisterServerCallback("Inventory:UseItem", function(source, data, cb)
 		if entityPermCheck(source, data.invType) then
-			local slot = INVENTORY:GetOldestInSlot(data.owner, data.slot, data.invType)
+			local slot = Inventory:GetSlot(data.owner, data.slot, data.invType)
 			if slot ~= nil then
-				_lastUsedItem[source] = slot.id
-				INVENTORY.Items:Use(source, slot, cb)
+				Inventory.Items:Use(source, slot, cb)
 			else
 				sendRefreshForClient(source, data.owner, data.invType, data.slot)
 				cb(false)
@@ -1677,13 +1099,13 @@ function RegisterCallbacks()
 
 	Callbacks:RegisterServerCallback("Inventory:UseSlot", function(source, data, cb)
 		if data and data.slot then
-			local char = Fetch:CharacterSource(source)
-			if char then
-				local slotFrom = INVENTORY:GetOldestInSlot(char:GetData("SID"), data.slot, 1)
+			local player = Fetch:Source(source)
+			local char = player:GetData("Character")
+			if player and char then
+				local slotFrom = Inventory:GetSlot(char:GetData("SID"), data.slot, 1)
 				if slotFrom ~= nil then
 					if slotFrom.Count or 0 > 0 then
-						_lastUsedItem[source] = slotFrom.id
-						INVENTORY.Items:Use(source, slotFrom, function(yea)
+						Inventory.Items:Use(source, slotFrom, function(yea)
 							if not yea then
 								sendRefreshForClient(source, char:GetData("SID"), 1, slotFrom)
 							end
@@ -1709,7 +1131,7 @@ function RegisterCallbacks()
 		local playerPed = GetPlayerPed(source)
 		local playerCoords = GetEntityCoords(playerPed)
 		local route = Player(source).state.currentRoute
-		cb(INVENTORY:CheckDropZones(route, vector3(playerCoords.x, playerCoords.y, playerCoords.z)))
+		cb(Inventory:CheckDropZones(route, vector3(playerCoords.x, playerCoords.y, playerCoords.z)))
 	end)
 
 	Callbacks:RegisterServerCallback("Inventory:Server:retreiveStores", function(source, data, cb)
@@ -1717,32 +1139,27 @@ function RegisterCallbacks()
 	end)
 
 	Callbacks:RegisterServerCallback("Inventory:Search", function(source, data, cb)
-		local dest = Fetch:CharacterSource(data.serverId)
-		if dest ~= nil then
-			INVENTORY.Search:Character(source, data.serverId, dest:GetData("SID"))
-			cb(dest:GetData("SID"))
+		local plyr = Fetch:Source(data.serverId)
+		if plyr ~= nil then
+			local dest = plyr:GetData("Character")
+			if dest ~= nil then
+				Inventory.Search:Character(source, data.serverId, dest:GetData("SID"))
+				cb(dest:GetData("SID"))
+			else
+				cb(false)
+			end
 		else
 			cb(false)
 		end
 	end)
 
 	Callbacks:RegisterServerCallback("Inventory:Raid", function(source, data, cb)
-		local dest = Fetch:CharacterSource(source)
+		local dest = Fetch:Source(source):GetData("Character")
 		local pState = Player(source).state
 
-		if dest and pState.onDuty ~= nil and pState.onDuty == "police" and Jobs.Permissions:HasPermissionInJob(source, 'police', 'PD_RAID') then
-			INVENTORY:OpenSecondary(source, data.invType, data.owner, data.class or false, data.model or false, true)
+		if pState.onDuty ~= nil and pState.onDuty == "police" and Jobs.Permissions:HasPermissionInJob(source, 'police', 'PD_RAID') then
+			Inventory:OpenSecondary(source, data.invType, data.owner, data.class or false, data.model or false, true)
 		end
-	end)
-
-	Callbacks:RegisterServerCallback("Inventory:Dumpster:Open", function(source, data, cb)
-		Callbacks:ClientCallback(source, "Inventory:Compartment:Open", {
-			invType = 4000,
-			owner = data.identifier,
-			}, function()
-				INVENTORY:OpenSecondary(source, 4000, data.identifier)
-		end)
-		cb()
 	end)
 
 	Callbacks:RegisterServerCallback("Inventory:CloseSecondary", function(source, inventory, cb)
@@ -1750,20 +1167,17 @@ function RegisterCallbacks()
 			refreshShit(inventory.owner)
 		elseif inventory.invType == 10 then
 			local route = Player(source).state.currentRoute
-			local exists = INVENTORY:DropExists(route, inventory.owner)
-			local hasItems = INVENTORY:HasItems(inventory.owner, 10)
+			local exists = Inventory:DropExists(route, inventory.owner)
+			local hasItems = Inventory:HasItems(inventory.owner, 10)
 			if inventory.position ~= nil and hasItems and not exists then
-				INVENTORY:CreateDropzone(route, inventory.position)
+				Inventory:CreateDropzone(route, inventory.position)
 			elseif exists and not hasItems then
-				INVENTORY:RemoveDropzone(route, inventory.owner)
+				Inventory:RemoveDropzone(route, inventory.owner)
 			end
 		else
 			if _refreshAttchs[inventory.owner] then
+				TriggerClientEvent("Weapons:Client:Attach", source)
 				_refreshAttchs[inventory.owner] = false
-			end
-
-			if _refreshGangChain[inventory.owner] then
-				_refreshGangChain[inventory.owner] = false
 			end
 		end
 
@@ -1771,215 +1185,46 @@ function RegisterCallbacks()
 
 		cb()
 	end)
-
-	Callbacks:RegisterServerCallback("Inventory:PlayerShop:AddItem", function(source, data, cb)
-		local char = Fetch:CharacterSource(source)
-		if char ~= nil then
-			local sid = char:GetData("SID")
-			if _playerShops[data.ownerTo] ~= nil then
-				if isShopModerator(data.ownerTo, source) then
-					local slotFrom = INVENTORY:GetSlot(data.ownerFrom, data.slotFrom, data.invTypeFrom)
-					if slotFrom ~= nil then
-						local item = itemsDatabase[slotFrom.Name]
-						local slotTo = INVENTORY:GetSlot(data.ownerTo, data.slotTo, data.invTypeTo)
-
-						if slotTo == nil or slotTo.Price == data.price then
-							local itemIds = MySQL.rawExecute.await('SELECT id FROM inventory WHERE owner = ? AND type = ? AND slot = ? AND item_id = ? ORDER BY id ASC LIMIT ?', {
-								tostring(data.ownerFrom),
-								data.invTypeFrom,
-								data.slotFrom,
-								slotFrom.Name,
-								data.quantity
-							})
-
-							local params = {}
-							for k, v in ipairs(itemIds) do
-								table.insert(params, v.id)
-							end
-							
-							MySQL.update.await(string.format('UPDATE inventory SET slot = ?, owner = ?, type = ?, price = ? WHERE id IN (%s)', table.concat(params, ',')), {
-								data.slotTo,
-								tostring(data.ownerTo),
-								data.invTypeTo,
-								data.price
-							})
-
-							if item.type == 2 then
-								TriggerClientEvent(
-									"Weapons:Client:Remove",
-									source,
-									slotFrom,
-									data.slotFrom,
-									{
-										owner = data.ownerTo,
-										type = data.invTypeTo,
-										slot = data.slotTo,
-									}
-								)
-							elseif item.type == 10 then
-								TriggerClientEvent(
-									"Inventory:Container:Remove",
-									source,
-									slotFrom,
-									data.slotFrom
-								)
-							end
-
-							if WEAPON_PROPS[itemsDatabase[slotFrom.Name].weapon or slotFrom.Name] ~= nil then
-								_refreshAttchs[data.ownerFrom] = source
-							end
-
-							if itemsDatabase[slotFrom.Name].gangChain ~= nil then
-								_refreshGangChain[data.ownerFrom] = source
-							end
-
-							cb({
-								player = getInventory(source, data.ownerFrom, data.invTypeFrom),
-								secondary = getInventory(source, data.ownerTo, data.invTypeTo)
-							})
-						else
-							cb(false)
-						end
-					else
-						cb(false)
-					end
-				else
-					cb(false)
-				end
-			else
-				cb(false)
-			end
-		else
-			cb(false)
-		end
-
-		sendRefreshForClient(source, data.ownerFrom, data.invTypeFrom, data.slotFrom)
-		sendRefreshForClient(source, data.ownerTo, data.invTypeTo, data.slotTo)
-	end)
-
-	Callbacks:RegisterServerCallback("Inventory:PlayerShop:AddModerator", function(source, data, cb)
-		local char = Fetch:CharacterSource(source)
-		if char ~= nil then
-			local sid = char:GetData("SID")
-			if _playerShops[data.shop] ~= nil then
-				if _playerShops[data.shop].owner == sid then
-					local tChar = Fetch:SID(tonumber(data.sid))
-					if tChar ~= nil then
-						if not isShopModerator(data.shop, tChar:GetData("Source")) then
-							INVENTORY.PlayerShops.Moderators:Add(data.shop, tonumber(data.sid), string.format("%s %s", tChar:GetData("First"), tChar:GetData("Last")))
-							Execute:Client(source, "Notification", "Success", string.format("%s %s Added As A Shop Moderator", tChar:GetData("First"), tChar:GetData("Last")))
-						else
-							Execute:Client(source, "Notification", "Error", string.format("%s %s Is Already A Shop Moderator", tChar:GetData("First"), tChar:GetData("Last")))
-						end
-					else
-						Execute:Client(source, "Notification", "Error", "Invalid Target ID")
-					end
-				else
-					Execute:Client(source, "Notification", "Error", "You're Not The Owner Of This Shop")
-				end
-			else
-				Execute:Client(source, "Notification", "Error", "Invalid Shop")
-			end
-		end
-	end)
-
-	Callbacks:RegisterServerCallback("Inventory:PlayerShop:RemoveModerator", function(source, data, cb)
-		local char = Fetch:CharacterSource(source)
-		if char ~= nil then
-			local sid = char:GetData("SID")
-			if _playerShops[data.shop] ~= nil then
-				if _playerShops[data.shop].owner == sid then
-					INVENTORY.PlayerShops.Moderators:Remove(data.shop, data.sid)
-					Execute:Client(source, "Notification", "Success", "Shop Moderator Removed")
-				else
-					Execute:Client(source, "Notification", "Error", "You're Not The Owner Of This Shop")
-				end
-			else
-				Execute:Client(source, "Notification", "Error", "Invalid Shop")
-			end
-		end
-	end)
-
-	Callbacks:RegisterServerCallback("Inventory:PlayerShop:ViewModerators", function(source, data, cb)
-		local char = Fetch:CharacterSource(source)
-		if char ~= nil then
-			local sid = char:GetData("SID")
-			if _playerShops[data] and _playerShops[data].owner == sid then
-				local list = {}
-				for k, v in pairs(_playerShopMods[data] or {}) do
-					table.insert(list, {
-						label = v.name,
-						description = string.format("State ID: %s", v.sid),
-						event = "Shop:Client:BasicShop:RemoveModerator",
-						data = {
-							shop = data,
-							sid = v.sid,
-							name = v.name
-						}
-					})
-				end
-
-				cb(list)
-			else
-				cb(false)
-			end
-		else
-			cb(false)
-		end
-	end)
-
-	Callbacks:RegisterServerCallback("Inventory:PlayerShop:ChangeState", function(source, data, cb)
-		local char = Fetch:CharacterSource(source)
-		if char ~= nil then
-			if _playerShops[data.id] and isShopModerator(data.id, source) then
-				if not _playerShops[data.id].job or Jobs.Permissions:HasPermissionInJob(source, _playerShops[data.id].job, "JOB_SHOP_CONTROL") then
-					GlobalState[string.format("BasicShop:%s", data.id)] = data.state
-
-					Execute:Client(source, "Notification", "Success", data.state and "Store Opened" or "Store Closed")
-
-					cb(true)
-				else
-					cb(false)
-				end
-			else
-				cb(false)
-			end
-		else
-			cb(false)
-		end
-	end)
 end
 
 RegisterNetEvent("Inventory:Server:UpdateSettings", function(data)
 	local src = source
-	local char = Fetch:CharacterSource(src)
-	if char ~= nil then
-		local settings = char:GetData("InventorySettings") or _defInvSettings
-		for k, v in pairs(data) do
-			settings[k] = v
+	local player = Fetch:Source(src)
+	if player ~= nil then
+		local char = player:GetData("Character")
+		if char ~= nil then
+			local settings = char:GetData("InventorySettings") or _defInvSettings
+			for k, v in pairs(data) do
+				settings[k] = v
+			end
+			char:SetData("InventorySettings", settings)
 		end
-		char:SetData("InventorySettings", settings)
 	end
 end)
 
 RegisterNetEvent("Inventory:Server:TriggerAction", function(data)
 	local src = source
-	local char = Fetch:CharacterSource(src)
-	if char ~= nil then
-		if LoadedEntitys[data.invType] ~= nil and LoadedEntitys[data.invType].action ~= nil then
-			TriggerEvent(LoadedEntitys[data.invType].action.event, src, data)
+	local plyr = Fetch:Source(src)
+	if plyr ~= nil then
+		local char = plyr:GetData("Character")
+		if char ~= nil then
+			if LoadedEntitys[data.invType] ~= nil and LoadedEntitys[data.invType].action ~= nil then
+				TriggerEvent(LoadedEntitys[data.invType].action.event, src, data)
+			end
 		end
 	end
 end)
 
 RegisterNetEvent("Inventory:Server:Request", function(secondary)
 	local src = source
-	local char = Fetch:CharacterSource(src)
+	local player = Fetch:Source(src)
+	local char = player:GetData("Character")
+
 
 	local plyrInvData = {
 		size = (LoadedEntitys[1].slots or 10),
 		name = char:GetData("First") .. " " .. char:GetData("Last"),
-		inventory = {},
+		inventory = plyrInv,
 		invType = 1,
 		capacity = LoadedEntitys[1].capacity,
 		owner = char:GetData("SID"),
@@ -1988,33 +1233,20 @@ RegisterNetEvent("Inventory:Server:Request", function(secondary)
 		loaded = false,
 	}
 
-	if secondary?.crafting then
-		local benchDetails = Crafting:GetBench(source, secondary.id)
-		if benchDetails ~= nil then
-			benchDetails.crafting = true
-			benchDetails.bench = secondary.id
-	
-			TriggerClientEvent("Inventory:Client:Open", src, plyrInvData, benchDetails)
-			plyrInvData.inventory = getInventory(src, char:GetData("SID"), 1)
-			plyrInvData.loaded = true
-			--TriggerClientEvent("Inventory:Client:Cache", src, plyrInvData)
-			TriggerClientEvent("Inventory:Client:Load", src, plyrInvData, benchDetails)
+	TriggerClientEvent("Inventory:Client:Open", src, plyrInvData, secondary and Inventory:GetSecondaryData(src, secondary.invType, secondary.owner, secondary.class or false, secondary.model or false) or nil)
 
-		end
-	else
-		TriggerClientEvent("Inventory:Client:Open", src, plyrInvData, secondary and INVENTORY:GetSecondaryData(src, secondary.invType, secondary.owner, secondary.class or false, secondary.model or false) or nil)
-		plyrInvData.inventory = getInventory(src, char:GetData("SID"), 1)
-		plyrInvData.loaded = true
-		--TriggerClientEvent("Inventory:Client:Cache", src, plyrInvData)
-		TriggerClientEvent("Inventory:Client:Load", src, plyrInvData, secondary and INVENTORY:GetSecondary(src, secondary.invType, secondary.owner, secondary.class or false, secondary.model or false) or nil)
-	end
+	plyrInvData.inventory = getInventory(src, char:GetData("SID"), 1)
+	plyrInvData.loaded = true
+
+	TriggerClientEvent("Inventory:Client:Cache", src, plyrInvData)
+	TriggerClientEvent("Inventory:Client:Load", src, plyrInvData, secondary and Inventory:GetSecondary(src, secondary.invType, secondary.owner, secondary.class or false, secondary.model or false) or nil)
 end)
 
 local _inUse = {}
 INVENTORY = {
 	CreateDropzone = function(self, routeId, coords)
 		local area = {
-			id = string.format("%s:%s:%s", math.ceil(coords.x), math.ceil(coords.y), routeId),
+			id = string.format("%s:%s", math.ceil(coords.x), math.ceil(coords.y)),
 			route = routeId,
 			coords = {
 				x = coords.x,
@@ -2080,28 +1312,22 @@ INVENTORY = {
 					end
 					
 					local name = nameOverride or (LoadedEntitys[invType].name or "Unknown")
-					if LoadedEntitys[invType].shop and shopLocations[Owner] ~= nil then
+					if LoadedEntitys[tonumber(invType)].shop and shopLocations[Owner] ~= nil then
 						name = string.format(
 							"%s (%s)",
 							shopLocations[Owner].name,
-							LoadedEntitys[invType].name
+							LoadedEntitys[tonumber(invType)].name
 						)
 					end
 
-					if LoadedEntitys[invType].playerShop and _playerShops[Owner] then
-						name = _playerShops[Owner].name
-					end
-
 					local requestedInventory = {
-						size = getSlotCount(invType, vehClass, vehModel, slotOverride, Owner, _src),
+						size = getSlotCount(invType, vehClass, vehModel, slotOverride),
 						name = name,
 						class = vehClass,
 						model = vehModel,
 						capacity = getCapacity(invType, vehClass, vehModel, capacityOverride),
-						shop = LoadedEntitys[invType].shop or false,
-						playerShop = LoadedEntitys[invType].playerShop or false,
-						modifyShop = LoadedEntitys[invType].playerShop and isShopModerator(Owner, _src) or false,
-						free = LoadedEntitys[invType].free or false,
+						shop = LoadedEntitys[tonumber(invType)].shop or false,
+						free = LoadedEntitys[tonumber(invType)].free or false,
 						inventory = {},
 						invType = invType,
 						owner = Owner,
@@ -2133,21 +1359,15 @@ INVENTORY = {
 							LoadedEntitys[tonumber(invType)].name
 						)
 					end
-
-					if LoadedEntitys[tonumber(invType)].playerShop and _playerShops[Owner] then
-						name = _playerShops[Owner].name
-					end
 	
 					local requestedInventory = {
-						size = getSlotCount(invType, vehClass, vehModel, slotOverride, Owner, _src),
+						size = getSlotCount(invType, vehClass, vehModel, slotOverride),
 						name = name,
 						class = vehClass,
 						model = vehModel,
 						capacity = getCapacity(invType, vehClass, vehModel, capacityOverride),
 						shop = LoadedEntitys[tonumber(invType)].shop or false,
 						free = LoadedEntitys[tonumber(invType)].free or false,
-						playerShop = LoadedEntitys[tonumber(invType)].playerShop or false,
-						modifyShop = LoadedEntitys[tonumber(invType)].playerShop and isShopModerator(Owner, _src) or false,
 						action = LoadedEntitys[tonumber(invType)].action or false,
 						inventory = getInventory(_src, Owner, invType),
 						invType = invType,
@@ -2170,7 +1390,8 @@ INVENTORY = {
 	end,
 	OpenSecondary = function(self, _src, invType, Owner, vehClass, vehModel, isRaid, nameOverride, slotOverride, capacityOverride)
 		if _src and invType and Owner then
-			local char = Fetch:CharacterSource(_src)
+			local player = Fetch:Source(_src)
+			local char = player:GetData("Character")
 
 			local plyrInvData = {
 				size = (LoadedEntitys[1].slots or 10),
@@ -2185,19 +1406,18 @@ INVENTORY = {
 		
 			TriggerEvent("Inventory:Server:Opened", _src, Owner, invType)
 
-			TriggerClientEvent("Inventory:Client:Open", _src, plyrInvData, INVENTORY:GetSecondaryData(_src, invType, Owner, vehClass, vehModel, isRaid, nameOverride, slotOverride, capacityOverride))
+			TriggerClientEvent("Inventory:Client:Open", _src, plyrInvData, Inventory:GetSecondaryData(_src, invType, Owner, vehClass, vehModel, isRaid, nameOverride, slotOverride, capacityOverride))
 		
 			plyrInvData.inventory = getInventory(_src, char:GetData("SID"), 1)
 			plyrInvData.loaded = true
 		
 			TriggerClientEvent("Inventory:Client:Cache", _src, plyrInvData)
-			TriggerClientEvent("Inventory:Client:Load", _src, plyrInvData, INVENTORY:GetSecondary(_src, invType, Owner, vehClass, vehModel, isRaid, nameOverride, slotOverride, capacityOverride))
+			TriggerClientEvent("Inventory:Client:Load", _src, plyrInvData, Inventory:GetSecondary(_src, invType, Owner, vehClass, vehModel, isRaid, nameOverride, slotOverride, capacityOverride))
 		end
 	end,
 	GetSlots = function(self, Owner, Type)
-		local db = MySQL.rawExecute.await('SELECT slot as Slot FROM inventory WHERE owner = ? AND type = ? GROUP BY slot ORDER BY slot', {
-			tostring(Owner),
-			Type,
+		local db = MySQL.query.await('SELECT slot as Slot FROM inventory WHERE name = ? GROUP BY slot ORDER BY slot', {
+			string.format("%s-%s", Owner, Type)
 		})
 
 		local slots = {}
@@ -2206,32 +1426,24 @@ INVENTORY = {
 		end
 		return slots
 	end,
-	GetSlotCount = function(self, Owner, Type)
-		return MySQL.scalar.await('SELECT COUNT(*) as count FROM inventory WHERE owner = ? AND type = ?', {
-			tostring(Owner),
-			Type,
-		})
-	end,
 	HasItems = function(self, Owner, Type)
-		return MySQL.scalar.await('SELECT COUNT(id) as count FROM inventory WHERE owner = ? AND type = ?', {
-			tostring(Owner),
-			Type,
-		}) > 0
+		return MySQL.single.await('SELECT COUNT(id) as count FROM inventory WHERE name = ?', {
+			string.format("%s-%s", Owner, Type)
+		}).count > 0
 	end,
 	GetMatchingSlot = function(self, Owner, Name, Count, Type)
 		if not itemsDatabase[Name].isStackable then
 			return nil
 		end
 
-		return (MySQL.scalar.await('SELECT slot as Slot FROM inventory WHERE owner = ? AND type = ? AND item_id = ? GROUP BY slot HAVING COUNT(item_id) <= ?', {
-			tostring(Owner),
-			Type,
+		return (MySQL.single.await('SELECT slot as Slot FROM inventory WHERE name = ? AND item_id = ? GROUP BY slot HAVING COUNT(item_id) <= ?', {
+			string.format("%s-%s", Owner, Type),
 			Name,
 			itemsDatabase[Name].isStackable - Count
-		}))
+		}))?.Slot
 	end,
-	GetFreeSlotNumbers = function(self, Owner, invType, vehClass, vehModel, src)
-		local result = INVENTORY:GetSlots(Owner, invType)
+	GetFreeSlotNumbers = function(self, Owner, invType, vehClass, vehModel)
+		local result = Inventory:GetSlots(Owner, invType)
 		local occupiedTable = {}
 		local unOccupiedSlots = {}
 		for k, v in ipairs(result) do
@@ -2240,7 +1452,7 @@ INVENTORY = {
 
 		local total = 8
 		if LoadedEntitys[invType] ~= nil then
-			total = getSlotCount(invType, vehClass or false, vehModel or false, false, Owner, src)
+			total = getSlotCount(invType, vehClass or false, vehModel or false)
 		else
 			Logger:Error("Inventory", string.format("Entity Type ^2%s^7 Was Attempted To Be Loaded", invType))
 		end
@@ -2255,218 +1467,329 @@ INVENTORY = {
 
 		return unOccupiedSlots
 	end,
-	SlotExists = function(self, Owner, Slot, Type)
-		return (MySQL.scalar.await('SELECT id FROM inventory WHERE owner = ? AND type = ? AND slot = ?', {
-			tostring(Owner),
-			Type,
-			Slot
-		}) ~= nil)
-	end,
 	GetSlot = function(self, Owner, Slot, Type)
-		local item = MySQL.prepare.await('SELECT id, count(*) as Count, owner as Owner, type as invType, item_id as Name, price as Price, quality AS Quality, information as MetaData, slot as Slot, MIN(creationDate) as CreateDate FROM inventory WHERE owner = ? AND type = ? AND slot = ? GROUP BY slot ORDER BY slot ASC', {
-			tostring(Owner),
-			Type,
+		local item = MySQL.single.await('SELECT id, count(Name) as Count, name as Owner, item_id as Name, dropped as Temp, MAX(quality) as Quality, information as MetaData, slot as Slot, MIN(creationDate) as CreateDate FROM inventory WHERE name = ? AND slot = ? GROUP BY slot ORDER BY slot ASC', {
+			string.format("%s-%s", Owner, Type),
 			Slot
 		})
 
 		if item ~= nil then
 			item.MetaData = json.decode(item.MetaData or "{}")
+			item.Owner = Owner
+			item.invType = Type
 		end
 
 		return item
 	end,
-	CountInSlot = function(self, Owner, Slot, Type)
-		local t = MySQL.scalar.await('SELECT COUNT(*) as Count FROM inventory WHERE owner = ? AND type = ? AND slot = ?', {
-			tostring(Owner),
-			Type,
-			Slot
+	GetProvidedSlots = function(self, Owner, Type, Slots)
+		return MySQL.single.await('SELECT id, count(Name) as Count, name as Owner, item_id as Name, dropped as Temp, MAX(quality) as Quality, information as MetaData, slot as Slot, MIN(creationDate) as CreateDate FROM inventory WHERE name = ? AND slot IN (?) GROUP BY slot ORDER BY slot ASC', {
+			string.format("%s-%s", Owner, Type),
+			Slots
 		})
-		return t
-	end,
-	GetOldestInSlot = function(self, Owner, Slot, Type)
-		local item = MySQL.prepare.await('SELECT id, owner as Owner, type as invType, item_id as Name, price as Price, quality AS Quality, information as MetaData, slot as Slot, creationDate as CreateDate FROM inventory WHERE owner = ? AND type = ? AND slot = ? ORDER BY creationDate ASC LIMIT 1', {
-			tostring(Owner),
-			Type,
-			Slot
-		})
-
-		if item ~= nil then
-			item.MetaData = json.decode(item.MetaData or "{}")
-			item.Count = self:CountInSlot(Owner, Slot, Type)
-		end
-
-		return item
 	end,
 	GetItem = function(self, id)
-		return MySQL.prepare.await('SELECT id, count(*) as Count, owner as Owner, type as invType, item_id as Name, price as Price, quality AS Quality, information as MetaData, slot as Slot, creationDate as CreateDate FROM inventory WHERE id = ?', {
+		return MySQL.single.await('SELECT id, count(Name) as Count, name as Owner, item_id as Name, dropped as Temp, quality as Quality, information as MetaData, slot as Slot, creationDate as CreateDate FROM inventory WHERE id = ?', {
 			id
 		})
 	end,
-	AddItem = function(self, Owner, Name, Count, md, invType, vehClass, vehModel, entity, isRecurse, Slot, forceCreateDate, quality, skipMetaGen, skipChangeAlert)
-		local p = promise.new()
+	CreateItemWithNoMeta = function(self, Owner, Name, Count, Slot, MetaData, invType, isRecurse)
+		if not Count or not tonumber(Count) or Count <= 0 then
+			Count = 1
+		end
 
-		Citizen.CreateThread(function()
-			if vehClass == nil then
-				vehClass = false
-			end
-	
-			if vehModel == nil then
-				vehModel = false
-			end
-	
-			if entity == nil then
-				entity = false
-			end
-	
-			if not Count or not tonumber(Count) or Count <= 0 then
-				Count = 1
-			end
-	
-			local itemExist = itemsDatabase[Name]
-			if itemExist then
-				if invType == 1 and not skipMetaGen then
-					if not isRecurse and not skipChangeAlert then
-						local char = Fetch:SID(Owner)
-						if char ~= nil then
-							TriggerClientEvent("Inventory:Client:Changed", char:GetData("Source"), "add", Name, Count)
-						end
-					end
+		local itemExist = itemsDatabase[Name]
+		if itemExist then
+			local p = promise.new()
+
+			if
+				not itemExist.isStackable and Count > 1
+				or Count > 50
+				or (type(itemExist.isStackable) == "number" and Count > itemExist.isStackable and itemExist.isStackable > 0)
+			then
+				while
+					not itemExist.isStackable and itemExist.isStackable ~= -1 and Count > 1
+					or Count > 50
+					or (type(itemExist.isStackable) == "number" and Count > itemExist.isStackable and itemExist.isStackable > 0)
+				do
+					local s = Count > 50 and 50 or itemExist.isStackable or 1
+					self:CreateItemWithNoMeta(Owner, Name, Count, Slot, MetaData, invType, true)
+					Count = Count - s
 				end
+			end
 
-				local slotsNeeded = math.ceil(Count / (itemExist.isStackable or 1))
-				local slots = INVENTORY:GetFreeSlotNumbers(Owner, invType, vehClass, vehModel)
-				local slotsData = {}
-				if Slot then
-					table.insert(slotsData, {
-						owner = Owner,
-						type = invType,
-						slot = Slot
-					})
+			return Inventory:AddSlot(Owner, Name, Count, MetaData, Slot, invType)
+		else
+			return false
+		end
+	end,
+	CreateItem = function(self, Owner, Name, Count, Slot, md, invType, isRecurse, forceCreateDate, quality)
+		local MetaData = table.copy(md or {})
+
+		if not Count or not tonumber(Count) or Count <= 0 then
+			Count = 1
+		end
+
+		local itemExist = itemsDatabase[Name]
+		if itemExist then
+			local p = promise.new()
+
+			if
+				not itemExist.isStackable and Count > 1
+				or Count > 10000
+				or (type(itemExist.isStackable) == "number" and Count > itemExist.isStackable and itemExist.isStackable > 0)
+			then
+				while
+					not itemExist.isStackable and itemExist.isStackable ~= -1 and Count > 1
+					or Count > 10000
+					or (type(itemExist.isStackable) == "number" and Count > itemExist.isStackable and itemExist.isStackable > 0)
+				do
+					local s = Count > 10000 and 10000 or itemExist.isStackable or 1
+					self:CreateItem(Owner, Name, Count, Slot, MetaData, invType, true, quality)
+					Count = Count - s
 				end
-				if #slots < slotsNeeded then
-					for k, v in ipairs(slots) do
-						table.insert(slotsData, {
-							owner = Owner,
-							type = invType,
-							slot = v
-						})
-					end
+			end
 
-					local char = Fetch:SID(Owner)
-					local coords = { x = 900.441, y = -1757.186, z = 21.359 }
-					local route = 0
-	
-					if char ~= nil then
-						local x, y, z = table.unpack(GetEntityCoords(GetPlayerPed(char:GetData("Source"))))
-						coords = { x = x, y = y, z = z - 0.98 }
-						route = Player(char:GetData("Source")).state.currentRoute
-					elseif entity ~= nil then
-						local x, y, z = table.unpack(GetEntityCoords(entity))
-						coords = { x = x, y = y, z = z }
-						route = GetEntityRoutingBucket(entity)
-					end
-	
-					local dz = INVENTORY:CheckDropZones(route, coords)
-					local tOwn = nil
-					if dz == nil then
-						tOwn = INVENTORY:CreateDropzone(route, coords)
+			if itemExist.type == 2 then
+				if not MetaData.SerialNumber and not itemExist.noSerial then
+					if MetaData.Scratched then
+						MetaData.ScratchedSerialNumber = Weapons:Purchase(Owner, itemExist, true, MetaData.Company)
+						MetaData.Scratched = nil
 					else
-						tOwn = dz.id
+						MetaData.SerialNumber = Weapons:Purchase(Owner, itemExist, false, MetaData.Company)
 					end
-	
-					local t = INVENTORY:GetFreeSlotNumbers(tOwn, 10, vehClass, vehModel)
-					for k, v in ipairs(t) do
-						if #slotsData < slotsNeeded then
-							table.insert(slotsData, {
-								owner = tOwn,
-								type = 10,
-								slot = v
-							})
-						else
-							break	
-						end
-					end
+					MetaData.Company = nil
+				end
+			elseif itemExist.type == 10 and not MetaData.Container then
+				MetaData.Container = string.format("container:%s", Sequence:Get("Container"))
+			elseif itemExist.type == 11 and not MetaData.Quality then
+				MetaData.Quality = math.random(100)
+			elseif itemExist.name == "govid" and invType == 1 then
+				local plyr = Fetch:SID(Owner)
+				local char = plyr:GetData("Character")
+				local genStr = "Male"
+				if char:GetData("Gender") == 1 then
+					genStr = "Female"
+				end
+				MetaData.Name = string.format("%s %s", char:GetData("First"), char:GetData("Last"))
+				MetaData.Gender = genStr
+				MetaData.PassportID = plyr:GetData("AccountID")
+				MetaData.StateID = char:GetData("SID")
+				MetaData.DOB = char:GetData("DOB")
+			elseif itemExist.name == "moneybag" and not MetaData.Finish then
+				MetaData.Finished = os.time() + (60 * 60 * 24 * math.random(1, 3))
+			elseif itemExist.name == "crypto_voucher" and not MetaData.CryptoCoin and not MetaData.Quantity then
+				MetaData.CryptoCoin = "PLEB"
+				MetaData.Quantity = math.random(25, 50)
+			elseif itemExist.name == "vpn" then
+				MetaData.VpnName = {
+					First = Generator.Name:First(),
+					Last = Generator.Name:Last(),
+				}
+			elseif itemExist.name == "WEAPON_PETROLCAN" then
+				MetaData.ammo = 4500
+			elseif itemExist.name == "cigarette_pack" then
+				MetaData.Count = 30
+			elseif itemExist.name == "choplist" and not MetaData.ChopList then
+				MetaData.ChopList = Phone.LSUnderground.Chopping:GenerateList(math.random(4, 8), math.random(3, 5))
+			elseif itemExist.name == "meth_table" and not MetaData.MethTable then
+				MetaData.MethTable = Drugs.Meth:GenerateTable(1)
+			elseif itemExist.name == "adv_meth_table" and not MetaData.MethTable then
+				MetaData.MethTable = Drugs.Meth:GenerateTable(2)
+			elseif itemExist.name == "meth_bag" or itemExist.name == "meth_brick" or itemExist.name == "coke_bag" or itemExist.name == "coke_brick" then
+				if not quality then
+					quality = math.random(1, 100)
+				end
+				if itemExist.name == "meth_brick" then
+					MetaData.Finished = os.time() + (60 * 60 * 24)
+				end
+			elseif itemExist.name == "paleto_access_codes" and not MetaData.AccessCodes then
+				MetaData.AccessCodes = {
+					Robbery:GetAccessCodes('paleto')[1]
+				}
+			end
+
+			return Inventory:AddSlot(Owner, Name, Count, MetaData, Slot, invType, forceCreateDate or false, quality or false)
+		else
+			return false
+		end
+	end,
+	AddItem = function(self, Owner, Name, Count, md, invType, vehClass, vehModel, entity, isRecurse, Slot, forceCreateDate, quality)
+		local MetaData = table.copy(md or {})
+
+		if vehClass == nil then
+			vehClass = false
+		end
+
+		if vehModel == nil then
+			vehModel = false
+		end
+
+		if entity == nil then
+			entity = false
+		end
+
+		if not Count or not tonumber(Count) or Count <= 0 then
+			Count = 1
+		end
+
+		if invType == 1 then
+			if not isRecurse then
+				local plyr = Fetch:SID(Owner)
+				TriggerClientEvent("Inventory:Client:Changed", plyr:GetData("Source"), "add", Name, Count)
+			end
+		end
+
+		local itemExist = itemsDatabase[Name]
+		if itemExist then
+			local invWeight = Inventory.Items:GetWeights(Owner, invType)
+			local totWeight = invWeight + (Count * itemExist.weight)
+
+			if
+				not itemExist.isStackable and Count > 1
+				or Count > 10000
+				or (type(itemExist.isStackable) == "number" and Count > itemExist.isStackable and itemExist.isStackable > 0)
+			then
+				while
+					not itemExist.isStackable and Count > 1
+					or Count > 10000
+					or (type(itemExist.isStackable) == "number" and Count > itemExist.isStackable and itemExist.isStackable > 0)
+				do
+					local s = Count > 10000 and 10000 or itemExist.isStackable or 1
+					self:AddItem(Owner, Name, s, MetaData, invType, vehClass, vehModel or false, entity or false, true, Slot or false, forceCreateDate or false, quality or false)
+					Count = Count - s
+				end
+			end
+
+			local slots = Inventory:GetFreeSlotNumbers(Owner, invType, vehClass, vehModel)
+			if
+				(totWeight > getCapacity(invType, vehClass, vehmodel) and itemExist.weight > 0)
+				or (#slots == 0 or slots[1] > getSlotCount(invType, vehClass or false, vehModel or false))
+			then
+				local plyr = Fetch:SID(Owner)
+				local coords = { x = 900.441, y = -1757.186, z = 21.359 }
+				local route = 0
+
+				if plyr ~= nil then
+					local x, y, z = table.unpack(GetEntityCoords(GetPlayerPed(plyr:GetData("Source"))))
+					coords = { x = x, y = y, z = z - 0.98 }
+					route = Player(plyr:GetData("Source")).state.currentRoute
+				elseif entity ~= nil then
+					local x, y, z = table.unpack(GetEntityCoords(entity))
+					coords = { x = x, y = y, z = z }
+					route = GetEntityRoutingBucket(entity)
+				end
+
+				invType = 10
+				local dz = Inventory:CheckDropZones(route, coords)
+				if dz == nil then
+					Owner = Inventory:CreateDropzone(route, coords)
 				else
-					for k, v in ipairs(slots) do
-						if #slotsData < slotsNeeded then
-							table.insert(slotsData, {
-								owner = Owner,
-								type = invType,
-								slot = v
-							})
-						else
-							break	
-						end
-					end
+					Owner = dz.id
 				end
 
-				local MetaData = nil
-				if not skipMetaGen then
-					if invType == 1 then
-						local char = Fetch:SID(Owner)
-						if char ~= nil then
-							if itemExist.name == "choplist" then
-								md.Owner = char:GetData("SID")
-							end
-							MetaData = BuildMetaDataTable(char:GetData(), Name, md or false)
-						else
-							MetaData = BuildMetaDataTable({}, Name, md or false)
-						end
+				slots = Inventory:GetFreeSlotNumbers(Owner, invType, vehClass, vehModel)
+			end
+
+			if itemExist.staticMetadata ~= nil then
+				for k, v in pairs(itemExist.staticMetadata) do
+					if MetaData[k] == nil then
+						MetaData[k] = v
+					end
+				end
+			end
+
+			if itemExist.type == 2 then
+				if not MetaData.SerialNumber and not itemExist.noSerial then
+					if MetaData.Scratched then
+						MetaData.ScratchedSerialNumber = Weapons:Purchase(Owner, itemExist, true, MetaData.Company)
+						MetaData.Scratched = nil
 					else
-						MetaData = BuildMetaDataTable({}, Name, md or false)
+						MetaData.SerialNumber = Weapons:Purchase(Owner, itemExist, false, MetaData.Company)
 					end
-				else
-					MetaData = table.copy(md or {})
+					MetaData.Company = nil
 				end
-	
-				local retval = {}
-				local qualSet = quality ~= nil
-				for k, v in ipairs(slotsData) do
-					if (itemExist.name == "meth_bag" or itemExist.name == "meth_brick" or itemExist.name == "coke_bag" or itemExist.name == "coke_brick") and not qualSet then
-						quality = math.random(1, 100)
-					elseif itemExist.name == "choplist" then
-						MetaData.ChopList = Laptop.LSUnderground.Chopping:GenerateList(math.random(4, 8), math.random(3, 5))
-					end
+			elseif itemExist.type == 10 and not MetaData.Container then
+				MetaData.Container = string.format("container:%s", Sequence:Get("Container"))
+			elseif itemExist.type == 11 and not MetaData.Quality then
+				MetaData.Quality = math.random(100)
+			elseif itemExist.name == "govid" and invType == 1 then
+				local plyr = Fetch:SID(Owner)
+				local char = plyr:GetData("Character")
+				local genStr = "Male"
+				if char:GetData("Gender") == 1 then
+					genStr = "Female"
+				end
+				MetaData.Name = string.format("%s %s", char:GetData("First"), char:GetData("Last"))
+				MetaData.Gender = genStr
+				MetaData.PassportID = plyr:GetData("AccountID")
+				MetaData.StateID = char:GetData("SID")
+				MetaData.DOB = char:GetData("DOB")
+			elseif itemExist.name == "moneybag" and not MetaData.Finish then
+				MetaData.Finished = os.time() + (60 * 60 * 24 * math.random(1, 3))
+			elseif itemExist.name == "crypto_voucher" and not MetaData.CryptoCoin and not MetaData.Quantity then
+				MetaData.CryptoCoin = "PLEB"
+				MetaData.Quantity = math.random(25, 50)
+			elseif itemExist.name == "vpn" then
+				MetaData.VpnName = {
+					First = Generator.Name:First(),
+					Last = Generator.Name:Last(),
+				}
+			elseif itemExist.name == "WEAPON_PETROLCAN" then
+				MetaData.ammo = 4500
+			elseif itemExist.name == "cigarette_pack" then
+				MetaData.Count = 30
+			elseif itemExist.name == "choplist" and not MetaData.ChopList then
+				MetaData.ChopList = Phone.LSUnderground.Chopping:GenerateList(math.random(4, 8), math.random(3, 5))
+			elseif itemExist.name == "meth_table" and not MetaData.MethTable then
+				MetaData.MethTable = Drugs.Meth:GenerateTable(1)
+			elseif itemExist.name == "adv_meth_table" and not MetaData.MethTable then
+				MetaData.MethTable = Drugs.Meth:GenerateTable(2)
+			elseif itemExist.name == "meth_bag" or itemExist.name == "meth_brick" or itemExist.name == "coke_bag" or itemExist.name == "coke_brick" then
+				if not quality then
+					quality = math.random(1, 100)
+				end
+				if itemExist.name == "meth_brick" then
+					MetaData.Finished = os.time() + (60 * 60 * 24)
+				end
+			elseif itemExist.name == "paleto_access_codes" and not MetaData.AccessCodes then
+				MetaData.AccessCodes = {
+					Robbery:GetAccessCodes('paleto')[1]
+				}
+			end
 
-					local c = Count > (itemExist.isStackable or 1) and (itemExist.isStackable or 1) or Count
-					local mSlot = INVENTORY:GetMatchingSlot(v.owner, Name, c, v.type)
-					if mSlot == nil then
-						retval = INVENTORY:AddSlot(v.owner, Name, c, MetaData, v.slot, v.type, forceCreateDate or false, quality or false)
-					else
-						retval = INVENTORY:AddSlot(v.owner, Name, c, MetaData, mSlot, v.type, forceCreateDate or false, quality or false)
-					end
-				end
+			local retval = nil
 
-				if not isRecurse then
-					if invType == 1 then
-						if WEAPON_PROPS[itemExist.weapon or Name] ~= nil then
-							_refreshAttchs[Owner] = true
-						end
-	
-						if itemExist.gangChain ~= nil then
-							_refreshGangChain[Owner] = true
-						end
-						refreshShit(Owner, true)
-					end
-				end
-	
-				p:resolve({ id = retval, MetaData = MetaData })
+			if not itemExist.isStackable then
+				retval = Inventory:AddSlot(Owner, Name, 1, MetaData, slots[1], invType, forceCreateDate or false, quality or false)
 			else
-				p:resolve(false)
+				local mSlot = Inventory:GetMatchingSlot(Owner, Name, Count, invType)
+				if mSlot == nil then
+					retval = Inventory:AddSlot(Owner, Name, Count, MetaData, slots[1], invType, forceCreateDate or false, quality or false)
+				else
+					retval = Inventory:AddSlot(Owner, Name, Count, MetaData, mSlot, invType, forceCreateDate or false, quality or false)
+				end
 			end
-		end)
 
-		return Citizen.Await(p)
+			if invType == 1 then
+				if WEAPON_PROPS[Name] ~= nil then
+					_refreshAttchs[Owner] = true
+				end
+				refreshShit(Owner, true)
+			end
+
+			return retval
+		else
+			return false
+		end
 	end,
 	AddSlot = function(self, Owner, Name, Count, MetaData, Slot, Type, forceCreateDate, quality)
-		local p = promise.new()
 		if Count <= 0 then
 			Logger:Error("Inventory", "[AddSlot] Cannot Add " .. Count .. " of an Item (" .. Owner .. ":" .. Type .. ")")
 			return false
 		end
 
 		if Slot == nil then
-			local freeSlots = INVENTORY:GetFreeSlotNumbers(Owner, Type)
+			local freeSlots = Inventory:GetFreeSlotNumbers(Owner, Type)
 			if #freeSlots == 0 then
 				Logger:Error("Inventory", "[AddSlot] No Available Slots For " .. Owner .. ":" .. Type .. " And Passed Slot Was Nil")
 				return false
@@ -2482,7 +1805,8 @@ INVENTORY = {
 			return false
 		end
 
-
+		local qry = 'INSERT INTO inventory (name, item_id, slot, quality, information, creationDate, expiryDate, dropped) VALUES '
+		local params = {}
 
 		local created = forceCreateDate or os.time()
 		local expiry = -1
@@ -2490,91 +1814,42 @@ INVENTORY = {
 			expiry = created + itemsDatabase[Name].durability
 		end
 
-		if Count > 2500 then
-			local c = Count
-			local queries = {}
-			while c > 0 do
-				local qry = 'INSERT INTO inventory (owner, type, item_id, slot, quality, information, creationDate, expiryDate) VALUES '
-				local params = {}
-
-				local c2 = c > 2500 and 2500 or c
-
-				for i = 1, c2 do
-					table.insert(params, tostring(Owner))
-					table.insert(params, Type)
-					table.insert(params, Name)
-					table.insert(params, Slot)
-					table.insert(params, quality or 0)
-					table.insert(params, json.encode(MetaData))
-					table.insert(params, created)
-					table.insert(params, expiry)
-					qry = qry .. '(?, ?, ?, ?, ?, ?, ?, ?)'
-					if i < c2 then
-						qry = qry .. ','
-					end
-				end
-
-				qry = qry .. ';'
-
-				table.insert(queries, {
-					query = qry,
-					values = params
-				})
-
-				c -= c2
+		for i = 1, Count do
+			table.insert(params, string.format("%s-%s", Owner, Type))
+			table.insert(params, Name)
+			table.insert(params, Slot)
+			table.insert(params, quality or 0)
+			table.insert(params, json.encode(MetaData))
+			table.insert(params, created)
+			table.insert(params, expiry)
+			table.insert(params, Type == 10 and 1 or 0)
+			qry = qry .. '(?, ?, ?, ?, ?, ?, ?, ?)'
+			if i < Count then
+				qry = qry .. ','
 			end
-
-			MySQL.transaction(queries, function(r)
-				p:resolve(r)
-			end)
-		else
-			local qry = 'INSERT INTO inventory (owner, type, item_id, slot, quality, information, creationDate, expiryDate) VALUES '
-			local params = {}
-
-			for i = 1, Count do
-				table.insert(params, tostring(Owner))
-				table.insert(params, Type)
-				table.insert(params, Name)
-				table.insert(params, Slot)
-				table.insert(params, quality or 0)
-				table.insert(params, json.encode(MetaData))
-				table.insert(params, created)
-				table.insert(params, expiry)
-				qry = qry .. '(?, ?, ?, ?, ?, ?, ?, ?)'
-				if i < Count then
-					qry = qry .. ','
-				end
-			end
-	
-			qry = qry .. ';'
-	
-			MySQL.query(qry, params, function(res)
-				p:resolve(res)
-			end)
 		end
 
-		return Citizen.Await(p)
+		qry = qry .. ';'
+
+		local ids = MySQL.insert.await(qry, params)
+
+		return { id = ids, metadata = MetaData}
 	end,
 	SetItemCreateDate = function(self, id, value)
-		MySQL.update.await('UPDATE inventory SET creationDate = ? WHERE id = ?', {
+		MySQL.query.await('UPDATE inventory SET creationDate = ? WHERE id = ?', {
 			value,
 			id,
 		})
 	end,
-	SetMetaDataKey = function(self, id, key, value, source)
-		local slot = INVENTORY:GetItem(id)
+	SetMetaDataKey = function(self, id, key, value)
+		local slot = Inventory:GetItem(id)
 		if slot ~= nil then
 			local md = json.decode(slot.MetaData or "{}")
 			md[key] = value
-			MySQL.update.await('UPDATE inventory SET information = ? WHERE id = ?', {
+			MySQL.query.await('UPDATE inventory SET information = ? WHERE id = ?', {
 				json.encode(md),
 				id,
 			})
-
-			if source then
-				TriggerClientEvent("Inventory:Client:UpdateMetadata", source, slot.Slot, json.encode(md), key)
-			end
-
 			return md
 		else
 			return {}
@@ -2585,7 +1860,7 @@ INVENTORY = {
 			return false
 		end
 		
-		local slot = INVENTORY:GetItem(id)
+		local slot = Inventory:GetItem(id)
 		if slot ~= nil then
 			local md = json.decode(slot.MetaData or "{}")
 
@@ -2593,7 +1868,7 @@ INVENTORY = {
 				md[k] = v
 			end
 
-			MySQL.update.await('UPDATE inventory SET information = ? WHERE id = ?', {
+			MySQL.query.await('UPDATE inventory SET information = ? WHERE id = ?', {
 				json.encode(md),
 				id,
 			})
@@ -2608,106 +1883,95 @@ INVENTORY = {
 			return itemsDatabase[item]
 		end,
 		GetCount = function(self, owner, invType, item)
-			local counts = INVENTORY.Items:GetCounts(owner, invType)
+			local counts = Inventory.Items:GetCounts(owner, invType)
 			return counts[item] or 0
 		end,
 		GetCounts = function(self, owner, invType)
-			if invType == 1 then
-				if _invCounts[owner] == nil then
-					getInventory(owner, invType)
-				end
-				return _invCounts[owner]
-			else
-				-- non-players shouldn't be counting, so why are we here?
-				return {}
+			local counts = {}
+
+			local qry = MySQL.query.await('SELECT COUNT(id) as Count, item_id as Name FROM inventory WHERE name = ? GROUP BY item_id', {
+				string.format("%s-%s", owner, invType)
+			})
+
+			for k, v in ipairs(qry) do
+				counts[v.Name] = v.Count
 			end
+
+			return counts
 		end,
 		GetWeights = function(self, owner, invType)
-			if invType == 1 then
-				if _invCounts[owner] == nil then
-					getInventory(owner, invType)
-				end
-				local weights = 0
-				for k, v in pairs(_invCounts[owner]) do
-					local itemExist = itemsDatabase[k]
-					if itemExist then
-						weight += (itemExist.weight * v)
-					end
-				end
-				return weights
-			else
-				local items = MySQL.rawExecute.await('SELECT id, count(*) as Count, item_id as Name FROM inventory WHERE owner = ? AND type = ? GROUP BY item_id', {
-					tostring(owner),
-					invType,
-				})
-	
-				local weights = 0
-				for k, slot in ipairs(items) do
-					weights += (slot.Count * itemsDatabase[slot.Name].weight or 0)
-				end
-	
-				return weights
+			local items = MySQL.query.await('SELECT id, count(id) as Count, item_id as Name FROM inventory WHERE NAME = ? GROUP BY item_id', {
+				string.format('%s-%s', owner, invType)
+			})
+
+			local weights = 0
+			for k, slot in ipairs(items) do
+				weights += (slot.Count * itemsDatabase[slot.Name].weight or 0)
 			end
+
+			return weights
 		end,
 		GetFirst = function(self, Owner, Name, invType)
-			local item = MySQL.prepare.await("SELECT id, owner as Owner, type as invType, item_id as Name, price as Price, quality AS Quality, information as MetaData, slot as Slot, creationDate as CreateDate FROM inventory WHERE owner = ? AND type = ? AND item_id = ? AND ((expiryDate >= ? AND expiryDate >= 0) OR expiryDate = -1) ORDER BY quality DESC, creationDate ASC LIMIT 1", {
-				tostring(Owner),
-				invType,
+			local item = MySQL.single.await("SELECT id, name as Owner, item_id as Name, dropped as Temp, quality as Quality, information as MetaData, slot as Slot, creationDate as CreateDate FROM inventory WHERE NAME = ? AND item_id = ? ORDER BY quality DESC, creationDate ASC LIMIT 1", {
+				string.format("%s-%s", Owner, invType),
 				Name,
-				os.time(),
 			})
 
 			if item ~= nil then
 				item.MetaData = json.decode(item.MetaData or "{}")
+				item.Owner = Owner
+				item.invType = invType
 			end
 			
 			return item
 		end,
 		GetAll = function(self, Owner, Name, invType)
-			local items = MySQL.prepare.await("SELECT id, owner as Owner, type as invType, item_id as Name, price as Price, quality AS Quality, information as MetaData, slot as Slot, creationDate as CreateDate FROM inventory WHERE owner = ? AND type = ? AND item_id = ? ORDER BY quality DESC, creationDate ASC", {
-				tostring(Owner),
-				invType,
+			local items = MySQL.query.await("SELECT id, name as Owner, item_id as Name, dropped as Temp, quality as Quality, information as MetaData, slot as Slot, creationDate as CreateDate FROM inventory WHERE NAME = ? AND item_id = ? ORDER BY quality DESC, creationDate ASC", {
+				string.format("%s-%s", Owner, invType),
 				Name,
 			})
 
 			if #items > 0 then
 				for k, v in ipairs(items) do
 					items[k].MetaData = json.decode(items[k].MetaData or "{}")
+					local t = split(items[k].Owner, '-')
+					items[k].Owner = tonumber(t[1]) or t[1]
+					items[k].invType = tonumber(t[2])
 				end
 			end
 
 			return items
 		end,
 		Has = function(self, owner, invType, item, count)
-			return (MySQL.prepare.await('SELECT id, count(id) as Count FROM inventory WHERE owner = ? AND type = ? AND item_id = ? GROUP BY item_id', {
-				tostring(owner),
-				invType,
+			return (MySQL.single.await('SELECT id, count(id) as Count FROM inventory WHERE name = ? AND item_id = ? GROUP BY item_id', {
+				string.format("%s-%s", owner, invType),
 				item
 			})?.Count or 0) >= (count or 1)
 		end,
 		HasId = function(self, owner, invType, id)
-			return MySQL.prepare.await('SELECT id, count(*) as Count FROM inventory WHERE id = ? AND owner = ? AND type = ?', {
+			return MySQL.single.await('SELECT id, count(Name) as Count FROM inventory WHERE id = ? AND name = ?', {
 				id,
-				tostring(owner),
-				invType,
+				string.format("%s-%s", owner, invType),
 			}) ~= nil
 		end,
 		HasItems = function(self, source, items)
-			local char = Fetch:CharacterSource(source)
+			local player = Fetch:Source(source)
+			local char = player:GetData("Character")
 			local charId = char:GetData("SID")
 			for k, v in ipairs(items) do
-				if not INVENTORY.Items:Has(charId, 1, v.item, v.count) then
+				if not Inventory.Items:Has(charId, 1, v.item, v.count) then
 					return false
 				end
 			end
 			return true
 		end,
 		HasAnyItems = function(self, source, items)
-			local char = Fetch:CharacterSource(source)
+			local player = exports["quantum-base"]:FetchComponent("Fetch"):Source(source)
+			local char = player:GetData("Character")
 			local charId = char:GetData("SID")
 
 			for k, v in ipairs(items) do
-				if INVENTORY.Items:Has(charId, 1, v.item, v.count) then
+				if Inventory.Items:Has(charId, 1, v.item, v.count) then
 					return true
 				end
 			end
@@ -2725,10 +1989,10 @@ INVENTORY = {
 			end
 
 			local qry = string.format(
-				'SELECT id, count(id) as Count, owner as Owner, type as invType, item_id as Name, price as Price, quality AS Quality, information as MetaData, slot as Slot, creationDate as CreateDate FROM inventory WHERE owner = ? AND type = ? AND item_id IN (%s) GROUP BY item_id ORDER BY creationDate ASC',
+				'SELECT id, count(id) as Count, name as Owner, item_id as Name, dropped as Temp, quality as Quality, information as MetaData, slot as Slot, creationDate as CreateDate FROM inventory WHERE name = ? AND item_id IN (%s) GROUP BY item_id ORDER BY creationDate ASC',
 				table.concat(f, ',')
 			)
-			return MySQL.rawExecute.await(qry, { tostring(owner), invType })
+			return MySQL.query.await(qry, { string.format("%s-%s", owner, invType) })
 		end,
 		GetAllOfTypeNoStack = function(self, owner, invType, itemType)
 			local f = {}
@@ -2741,25 +2005,16 @@ INVENTORY = {
 			end
 
 			local qry = string.format(
-				'SELECT id, owner as Owner, type as invType, item_id as Name, price as Price, quality AS Quality, information as MetaData, slot as Slot, creationDate as CreateDate FROM inventory WHERE owner = ? AND type = ? AND item_id IN (%s)',
+				'SELECT id, name as Owner, item_id as Name, dropped as Temp, quality as Quality, information as MetaData, slot as Slot, creationDate as CreateDate FROM inventory WHERE name = ? AND item_id IN (%s)',
 				table.concat(f, ',')
 			)
-			return MySQL.rawExecute.await(qry, { tostring(owner), invType })
+			return MySQL.query.await(qry, { string.format("%s-%s", owner, invType) })
 		end,
 		RegisterUse = function(self, item, id, cb)
-			ItemCallbacks[item] = ItemCallbacks[item] or {}
+			if ItemCallbacks[item] == nil then
+				ItemCallbacks[item] = {}
+			end
 			ItemCallbacks[item][id] = cb
-			if itemsDatabase[item] and not itemsDatabase[item].isUsable then
-				itemsDatabase[item].isUsable = true
-			end
-
-			if itemsDatabase[item]?.isUsable then
-				for k, v in pairs(itemsDatabase) do
-					if v.imitate == item then
-						v.isUsable = true
-					end
-				end
-			end
 		end,
 		Use = function(self, source, item, cb)
 			if item == nil then
@@ -2830,16 +2085,7 @@ INVENTORY = {
 						end
 					end
 
-					local sid = Fetch:CharacterSource(source):GetData("SID")
-					if WEAPON_PROPS[item.Name] then
-						_refreshAttchs[sid] = true
-					end
-
-					if itemData.gangChain ~= nil then
-						_refreshGangChain[sid] = true
-					end
-
-					local char = Fetch:CharacterSource(source)
+					local char = Fetch:Source(source):GetData("Character")
 					sendRefreshForClient(source, char:GetData("SID"), 1, item.Slot)
 					_inUse[source] = false
 					TriggerClientEvent("Inventory:Client:InUse", source, _inUse[source])
@@ -2854,62 +2100,40 @@ INVENTORY = {
 			end
 		end,
 		Remove = function(self, owner, invType, item, count, skipUpdate)
-			local qry = "DELETE FROM inventory WHERE owner = ? AND type = ? AND item_id = ?"
-			local vars = {
-				tostring(owner),
-				invType,
+			local results = MySQL.query.await("DELETE FROM inventory WHERE name = ? AND item_id = ? ORDER BY slot ASC, creationDate ASC LIMIT ?", {
+				string.format("%s-%s", owner, invType),
 				item,
-			}
-
-			if count then
-				qry = "DELETE FROM inventory WHERE owner = ? AND type = ? AND item_id = ? ORDER BY slot ASC, creationDate ASC LIMIT ?"
-				vars = {
-					tostring(owner),
-					invType,
-					item,
-					count,
-				}
-			end
-
-			local results = MySQL.query.await(qry, vars)
+				count,
+			})
 
 			if not skipUpdate then
-				local itemData = itemsDatabase[item]
 				if invType == 1 then
-					local char = Fetch:SID(owner)
-					if char ~= nil then
-						local source = char:GetData("Source")
+					local plyr = Fetch:SID(owner)
+					if plyr ~= nil then
+						local source = plyr:GetData("Source")
+						local char = plyr:GetData("Character")
 						TriggerClientEvent("Inventory:Client:Changed", source, "removed", item, count)
-						if WEAPON_PROPS[itemData?.weapon or item] ~= nil then
+						if WEAPON_PROPS[item] ~= nil then
 							_refreshAttchs[owner] = source
-						end
-						if itemData?.gangChain ~= nil then
-							_refreshGangChain[owner] = source
 						end
 						refreshShit(owner)
 					end
 				end
 			end
-			
-			return results.affectedRows >= (count or 0)
+
+			return results.affectedRows >= count
 		end,
 		RemoveId = function(self, owner, invType, item)
 			MySQL.query.await("DELETE FROM inventory WHERE id = ?", { item.id })
 
 			if invType == 1 then
-				local itemData = itemsDatabase[item.Name]
-				local char = Fetch:SID(tonumber(owner))
-				if char ~= nil then
-					local source = char:GetData("Source")
+				local plyr = Fetch:SID(tonumber(owner))
+				if plyr ~= nil then
+					local source = plyr:GetData("Source")
 					TriggerClientEvent("Inventory:Client:Changed", source, "removed", item.Name, 1)
-					if WEAPON_PROPS[itemData?.weapon or item.Name] ~= nil then
+					if WEAPON_PROPS[item.Name] ~= nil then
 						_refreshAttchs[owner] = source
 					end
-
-					if itemData?.gangChain ~= nil then
-						_refreshGangChain[owner] = source
-					end
-
 					refreshShit(owner)
 				end
 			end
@@ -2917,15 +2141,28 @@ INVENTORY = {
 			return true
 		end,
 		RemoveAll = function(self, owner, type, item)
-			MySQL.query('DELETE FROM inventory WHERE owner = ? AND type = ? AND item_id = ?', {
-				tostring(owner),
-				type,
+			if type == 1 then
+				local plyr = Fetch:SID(owner)
+				if plyr ~= nil then
+					local count = MySQL.scalar.await('SELECT COUNT(item_id) as count FROM inventory WHERE name = ? and item_id = ?', {
+						string.format("%s-%s", owner, type),
+						item,
+					})
+
+					if count > 0 then
+						TriggerClientEvent("Inventory:Client:Changed", plyr:GetData("Source"), "removed", item, count)
+					end
+				end
+			end
+
+			MySQL.query.await('DELETE FROM inventory WHERE name = ? AND item_id = ?', {
+				string.format("%s-%s", owner, type),
 				item,
 			})
 			return true
 		end,
 		RemoveSlot = function(self, Owner, Name, Count, Slot, invType)
-			local slot = INVENTORY:GetSlot(Owner, Slot, invType)
+			local slot = Inventory:GetSlot(Owner, Slot, invType)
 			if slot == nil then
 				Logger:Error(
 					"Inventory",
@@ -2935,28 +2172,22 @@ INVENTORY = {
 				return false
 			else
 				if slot.Count >= Count then
-					MySQL.query.await('DELETE FROM inventory WHERE owner = ? AND type = ? AND slot = "?" AND item_id = ? ORDER BY creationDate ASC LIMIT ?', {
-						tostring(Owner),
-						invType,
+					MySQL.query.await('DELETE FROM inventory WHERE name = ? AND slot = "?" AND item_id = ? ORDER BY creationDate ASC LIMIT ?', {
+						string.format("%s-%s", Owner, invType),
 						Slot,
 						Name,
 						Count,
 					})
 	
 					if invType == 1 then
-						local itemData = itemsDatabase[item]
-						local char = Fetch:SID(Owner)
-						if char ~= nil then
-							local source = char:GetData("Source")
+						local plyr = Fetch:SID(Owner)
+						if plyr ~= nil then
+							local source = plyr:GetData("Source")
+							local char = plyr:GetData("Character")
 							TriggerClientEvent("Inventory:Client:Changed", source, "removed", Name, Count)
-							if WEAPON_PROPS[itemData?.weapon or item] ~= nil then
+							if WEAPON_PROPS[item] ~= nil then
 								_refreshAttchs[Owner] = source
 							end
-
-							if itemData?.gangChain ~= nil then
-								_refreshGangChain[Owner] = source
-							end
-
 							refreshShit(Owner)
 						end
 					end
@@ -2969,7 +2200,7 @@ INVENTORY = {
 		end,
 		RemoveList = function(self, owner, invType, items)
 			for k, v in ipairs(items) do
-				INVENTORY.Items:Remove(owner, invType, v.name, v.count)
+				Inventory.Items:Remove(owner, invType, v.name, v.count)
 			end
 		end,
 		GetWithStaticMetadata = function(self, masterKey, mainIdName, textureIdName, gender, data)
@@ -2989,130 +2220,90 @@ INVENTORY = {
 	},
 	Holding = {
 		Put = function(self, source)
-			Citizen.CreateThread(function()
+			CreateThread(function()
 				local p = promise.new()
-				local char = Fetch:CharacterSource(source)
-				if char ~= nil then
-					local inv = getInventory(source, char:GetData("SID"), 1)
+				local plyr = Fetch:Source(source)
+				if plyr ~= nil then
+					local char = plyr:GetData("Character")
+					if char ~= nil then
+						local inv = getInventory(source, char:GetData("SID"), 1)
 
-					if #inv > 0 then
-						local freeSlots = INVENTORY:GetFreeSlotNumbers(char:GetData("SID"), 2)
+						if #inv > 0 then
+							local freeSlots = Inventory:GetFreeSlotNumbers(char:GetData("SID"), 2)
 
-						if #inv <= #freeSlots then
-							local queries = {}
+							if #inv <= #freeSlots then
+								local queries = {}
 
-							for k, v in ipairs(inv) do
-								local sid = char:GetData("SID")
-								table.insert(queries, {
-									query = "UPDATE inventory SET owner = ?, type = ?, slot = ? WHERE owner = ? AND type = ? AND slot = ?", 
-									values = {
-										tostring(sid),
-										2,
-										freeSlots[k],
-										tostring(sid),
-										1,
-										v.Slot
-									}
-								})
+								for k, v in ipairs(inv) do
+									table.insert(queries, {
+										query = "UPDATE inventory SET name = ?, slot = ? WHERE name = ? AND slot = ?", 
+										values = {
+											string.format("%s-%s", char:GetData("SID"), 2),
+											freeSlots[k],
+											string.format("%s-%s", char:GetData("SID"), 1),
+											v.Slot
+										}
+									})
+								end
+
+								MySQL.transaction.await(queries)
+								refreshShit(char:GetData("SID"))
+
+								Execute:Client(source, "Notification", "Success", "Retreived Items")
+							else
+								Execute:Client(source, "Notification", "Error", "Not Enough Slots Available")
 							end
-
-							MySQL.transaction.await(queries)
-							refreshShit(char:GetData("SID"))
-
-							Execute:Client(source, "Notification", "Success", "Retreived Items")
 						else
-							Execute:Client(source, "Notification", "Error", "Not Enough Slots Available")
+							Execute:Client(source, "Notification", "Error", "No Items To Retreive")
 						end
-					else
-						Execute:Client(source, "Notification", "Error", "No Items To Retreive")
 					end
+					
+					p:resolve(true)
 				end
-				
-				p:resolve(true)
 				Citizen.Await(p)
 			end)
 		end,
 		Take = function(self, source)
-			Citizen.CreateThread(function()
+			CreateThread(function()
 				local p = promise.new()
-				local char = Fetch:CharacterSource(source)
-				if char ~= nil then
-					local inv = getInventory(source, char:GetData("SID"), 2)
+				local plyr = Fetch:Source(source)
+				if plyr ~= nil then
+					local char = plyr:GetData("Character")
+					if char ~= nil then
+						local inv = getInventory(source, char:GetData("SID"), 2)
 
-					if #inv > 0 then
-						local freeSlots = INVENTORY:GetFreeSlotNumbers(char:GetData("SID"), 1)
+						if #inv > 0 then
+							local freeSlots = Inventory:GetFreeSlotNumbers(char:GetData("SID"), 1)
 
-						if #inv <= #freeSlots then
-							local queries = {}
+							if #inv <= #freeSlots then
+								local queries = {}
 
-							for k, v in ipairs(inv) do
-								local sid = char:GetData("SID")
-								table.insert(queries, {
-									query = "UPDATE inventory SET owner = ?, type = ?, slot = ? WHERE owner = ? AND type = ? AND slot = ?", 
-									values = {
-										tostring(sid),
-										1,
-										freeSlots[k],
-										tostring(sid),
-										2,
-										v.Slot
-									}
-								})
+								for k, v in ipairs(inv) do
+									table.insert(queries, {
+										query = "UPDATE inventory SET name = ?, slot = ? WHERE name = ? AND slot = ?", 
+										values = {
+											string.format("%s-%s", char:GetData("SID"), 1),
+											freeSlots[k],
+											string.format("%s-%s", char:GetData("SID"), 2),
+											v.Slot
+										}
+									})
+								end
+
+								MySQL.transaction.await(queries)
+								refreshShit(char:GetData("SID"), true)
+
+								Execute:Client(source, "Notification", "Success", "Retreived Items")
+							else
+								Execute:Client(source, "Notification", "Error", "Not Enough Slots Available")
 							end
-
-							MySQL.transaction.await(queries)
-							refreshShit(char:GetData("SID"), true)
-
-							Execute:Client(source, "Notification", "Success", "Retreived Items")
 						else
-							Execute:Client(source, "Notification", "Error", "Not Enough Slots Available")
-						end
-					else
-						Execute:Client(source, "Notification", "Error", "No Items To Retreive")
-					end
-				end
-				
-				p:resolve(true)
-				Citizen.Await(p)
-			end)
-		end,
-	},
-	Ballistics = {
-		Clear = function(self, source, ballisticId, ballisticType)
-			Citizen.CreateThread(function()
-				local p = promise.new()
-				local char = Fetch:CharacterSource(source)
-				if char ~= nil then
-					local inv = getInventory(source, ballisticId, ballisticType)
-
-					if #inv > 0 then
-						local freeSlots = INVENTORY:GetFreeSlotNumbers(char:GetData("SID"), 1)
-
-						if #inv <= #freeSlots then
-							local queries = {}
-
-							for k, v in ipairs(inv) do
-								local sid = char:GetData("SID")
-								table.insert(queries, {
-									query = "UPDATE inventory SET owner = ?, type = ?, slot = ? WHERE owner = ? AND type = ? AND slot = ?", 
-									values = {
-										tostring(sid),
-										1,
-										freeSlots[k],
-										ballisticId,
-										ballisticType,
-										v.Slot
-									}
-								})
-							end
-
-							MySQL.transaction.await(queries)
-							refreshShit(char:GetData("SID"), true)
+							Execute:Client(source, "Notification", "Error", "No Items To Retreive")
 						end
 					end
+					
+					p:resolve(true)
 				end
-				
-				p:resolve(true)
 				Citizen.Await(p)
 			end)
 		end,
@@ -3123,31 +2314,31 @@ INVENTORY = {
 				item = item,
 				container = ("container:%s"):format(identifier),
 			}, function()
-				INVENTORY:OpenSecondary(src, itemsDatabase[item.Name].container, ("container:%s"):format(identifier))
+				Inventory:OpenSecondary(src, itemsDatabase[item.Name].container, ("container:%s"):format(identifier))
 			end)
 		end,
 	},
 	Stash = {
 		Open = function(self, src, invType, identifier)
-			INVENTORY:OpenSecondary(src, invType, ("stash:%s"):format(identifier))
+			Inventory:OpenSecondary(src, invType, ("stash:%s"):format(identifier))
 		end,
 	},
 	Shop = {
 		Open = function(self, src, identifier)
-			INVENTORY:OpenSecondary(src, 11, ("shop:%s"):format(identifier))
+			Inventory:OpenSecondary(src, 11, ("shop:%s"):format(identifier))
 		end,
 	},
 	Search = {
 		Character = function(self, src, tSrc, id)
 			Callbacks:ClientCallback(tSrc, "Inventory:ForceClose", {}, function(state)
 				Execute:Client(tSrc, "Notification", "Info", "You Were Searched")
-				INVENTORY:OpenSecondary(src, 1, id)
+				Inventory:OpenSecondary(src, 1, id)
 			end)
 		end,
 	},
 	Rob = function(self, src, tSrc, id)
 		Callbacks:ClientCallback(tSrc, "Inventory:ForceClose", {}, function(state)
-			INVENTORY:OpenSecondary(src, 1, id)
+			Inventory:OpenSecondary(src, 1, id)
 		end)
 	end,
 	Poly = {
@@ -3169,182 +2360,12 @@ INVENTORY = {
 	IsOpen = function(self, invType, id)
 		return _openInvs[string.format("%s-%s", invType, id)]
 	end,
-	UpdateGovIDMugshot = function(self, stateId, mugshot)
-		if not stateId or type(stateId) ~= "number" then
-			return false
-		end
-
-		local res = MySQL.prepare.await('SELECT id, information as MetaData FROM inventory WHERE item_id = ? AND JSON_EXTRACT(information, "$.StateID") = ?', { 
-			"govid",
-			stateId
-		})
-
-		local updatingIds = {}
-		for k,v in ipairs(res) do
-			table.insert(updatingIds, v.id)
-		end
-
-		if #updatingIds > 0 then
-			MySQL.update.await(string.format('UPDATE inventory SET information = JSON_SET(information, "$.Mugshot", ?) WHERE id IN (%s)', table.concat(updatingIds, ',')), {
-				mugshot
-			})
-		end
-		return true
-	end,
-	PlayerShops = {
-		Basic = {
-			Create = function(self, name, position, ped, owner, bank, job)
-				local id = MySQL.insert.await('INSERT INTO player_shops (name, position, ped_model, owner, job, owner_bank) VALUES(?, ?, ?, ?, ?, ?)', {
-					name,
-					json.encode(position),
-					ped ~= "0" and ped or nil,
-					owner,
-					job ~= "0" and job or nil,
-					bank,
-				})
-				_playerShops[id] = {
-					id = id,
-					name = name,
-					ped_model = ped ~= "0" and ped or nil,
-					position = position,
-					owner = owner,
-					job = job ~= "0" and job or nil,
-					bank = bank,
-				}
-	
-				TriggerClientEvent("Inventory:Client:BasicShop:Create", -1, _playerShops[id])
-			end,
-			Delete = function(self, id)
-				local queries = {}
-				table.insert(queries, {
-					query = "DELETE FROM player_shops_moderators WHERE shop = ?",
-					values = {
-						id,
-					}
-				})
-				table.insert(queries, {
-					query = "DELETE FROM player_shops WHERE id = ?",
-					values = {
-						id,
-					}
-				})
-				MySQL.transaction(queries)
-				_playerShops[id] = nil
-				_playerShopMods[id] = nil
-				TriggerClientEvent("Inventory:Client:BasicShop:Delete", -1, id)
-			end,
-		},
-		Moderators = {
-			Add = function(self, shop, sid, name)
-				MySQL.insert("INSERT INTO player_shops_moderators (shop, sid, name) VALUES(?, ?, ?) ON DUPLICATE KEY UPDATE shop = VALUES(shop), sid = VALUES(sid), name = VALUES(name)", {
-					shop,
-					sid,
-					name
-				})
-				_playerShopMods[shop] = _playerShopMods[shop] or {}
-				table.insert(_playerShopMods[shop], {
-					sid = sid,
-					name = name,
-				})
-			end,
-			Remove = function(self, shop, sid)
-				MySQL.query("DELETE FROM player_shops_moderators WHERE shop = ? AND sid = ?", {
-					shop,
-					sid,
-				})
-
-				_playerShopMods[shop] = _playerShopMods[shop] or {}
-				for k, v in ipairs(_playerShopMods[shop]) do
-					if v.sid == sid then
-						table.remove(_playerShopMods[shop], k)
-						break
-					end
-				end
-			end
-		}
-	},
-	ItemTemplate = {
-		Create = function(self, itemId, label, description, type, rarity, weight, durability, stackLimit, iconOverride, price, itemData)
-			local id = MySQL.query.await('INSERT INTO item_template (description, type, rarity, iconOverride, price, weapon, imitate, isStackable, closeUi, metalic, weight, durability, isDestroyed, isRemoved, gun, requiresLicense, qualification, ammoType, bulletCount, container, staticMetadata, component, animConfig, statusChange, extra, schematic, name, label) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', {
-				description or nil,
-				type or 1,
-				rarity or 1,
-				iconOverride or nil,
-				price >= 0 and price or 0,
-				itemData?.weapon or nil,
-				itemData?.imitate or nil,
-				stackLimit or 1,
-				itemData?.closeUi or false,
-				itemData?.metalic or false,
-				weight >= 0 and weight or nil,
-				durability >= 0 and durability or nil,
-				itemData?.isDestroyed or false,
-				itemData?.isRemoved or false,
-				type == 2,
-				itemData?.requiresLicense or false,
-				itemData?.qualification or nil,
-				itemData?.ammoType or nil,
-				itemData?.bulletCount or 0,
-				itemData?.container or nil,
-				itemData?.staticMetadata and json.encode(itemData?.staticMetadata) or nil,
-				itemData?.component and json.encode(itemData?.component) or nil,
-				itemData?.animConfig and json.encode(itemData?.animConfig) or nil,
-				itemData?.statusChange and json.encode(itemData?.statusChange) or nil,
-				itemData?.extra and json.encode(itemData?.extra) or nil,
-				itemData?.schematic or nil,
-				itemId,
-				label,
-			})
-
-			itemsDatabase[itemId] = {
-				name = itemId,
-				label = label,
-				description = description or nil,
-				type = type or 1,
-				rarity = rarity or 1,
-				iconOverride = iconOverride or nil,
-				price = price >= 0 and price or 0,
-				weapon = itemData?.weapon or nil,
-				imitate = itemData?.imitate or nil,
-				isStackable = stackLimit or 1,
-				closeUi = itemData?.closeUi or false,
-				metalic = itemData?.metalic or false,
-				weight = weight >= 0 and weight or nil,
-				durability = durability >= 0 and durability or nil,
-				isDestroyed = itemData?.isDestroyed or false,
-				isRemoved = itemData?.isRemoved or false,
-				gun = type == 2,
-				requiresLicense = itemData?.requiresLicense or false,
-				qualification = itemData?.qualification or nil,
-				ammoType = itemData?.ammoType or nil,
-				bulletCount = itemData?.bulletCount or 0,
-				container = itemData?.container or nil,
-				staticMetadata = itemData?.staticMetadata or nil,
-				component = itemData?.component or nil,
-				animConfig = itemData?.animConfig or nil,
-				statusChange = itemData?.statusChange or nil,
-				schematic = itemData?.schematic or nil,
-			}
-
-			if itemData?.extra then
-				for k, v in pairs(itemData.extra) do
-					itemsDatabase[itemId][k] = v
-				end
-			end
-
-			SetupItemUses(itemsDatabase[itemId])
-
-			TriggerEvent("Inventory:Server:NewItemCreated", itemId, type)
-			TriggerLatentClientEvent("Inventory:Client:NewItemCreated", -1, 50000, itemsDatabase[itemId])
-
-			return itemsDatabase[itemId]
-		end,
-	}
 }
 
 function UpdateCharacterItemStates(source, inventory, adding)
-	local char = Fetch:CharacterSource(source)
-	if not char then
+	local player = Fetch:Source(source)
+	local char = player:GetData("Character")
+	if not player or not char then
 		return
 	end
 	local changedState = false
@@ -3386,8 +2407,9 @@ end
 
 
 function UpdateCharacterGangChain(source, inventory)
-	local char = Fetch:CharacterSource(source)
-	if not char then
+	local player = Fetch:Source(source)
+	local char = player:GetData("Character")
+	if not player or not char then
 		return
 	end
 

@@ -5,28 +5,22 @@ import {
 	Menu,
 	MenuItem,
 	LinearProgress,
+	CircularProgress,
 	IconButton,
 	Modal,
 	Box,
 	Typography,
+	Alert,
 	Tooltip,
 	Button,
-	Dialog,
-	DialogTitle,
-	DialogContent,
-	DialogActions,
-	Grid,
-	TextField,
 } from '@mui/material';
 import { makeStyles } from '@mui/styles';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 
 import Slot from './Slot';
 import Nui from '../../util/Nui';
-import { closeInventory, useItem } from './actions';
+import { useItem } from './actions';
 import Split from './Split';
-import Crafting from '../Crafting';
-import AddToStore from './AddToStore';
 
 const useStyles = makeStyles((theme) => ({
 	root: {
@@ -36,15 +30,14 @@ const useStyles = makeStyles((theme) => ({
 		'-webkit-user-select': 'none',
 		width: '100%',
 		height: '100%',
-		gap: 300,
+		gap: 200,
 	},
 	gridBg: {
-		padding: 25,
-		background: `#080808d6`,
+		background: `#202020`,
+		padding: 10,
 		border: `1px solid rgba(255, 255, 255, 0.04)`,
 		height: 'fit-content',
-		maxWidth: 925,
-		width: '100%',
+		borderRadius: 5,
 	},
 	container: {
 		userSelect: 'none',
@@ -53,40 +46,60 @@ const useStyles = makeStyles((theme) => ({
 		height: 'fit-content',
 	},
 	inventoryGrid: {
+		display: 'grid',
+		gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr',
 		overflowX: 'hidden',
 		overflowY: 'scroll',
 		maxHeight: 'calc(60vh - 90px)',
 		height: 'fit-content',
 		userSelect: 'none',
 		'-webkit-user-select': 'none',
-		gap: 4,
-		display: 'flex',
-		flexWrap: 'wrap',
-		justifyContent: 'flex-start',
+		minWidth: 645,
+		gridAutoRows: 'max-content',
+		gap: 2,
+		'&::-webkit-scrollbar': {
+			width: 6,
+		},
+		'&::-webkit-scrollbar-thumb': {
+			background: `${theme.palette.primary.light}9e`,
+			transition: 'background ease-in 0.15s',
+		},
+		'&::-webkit-scrollbar-thumb:hover': {
+			background: `${theme.palette.primary.light}61`,
+		},
+		'&::-webkit-scrollbar-track': {
+			background: 'transparent',
+		},
 	},
 	inventoryWeight: {
-		padding: '0 0 5px 0',
+		padding: 5,
 		position: 'relative',
 	},
 	weightText: {
 		position: 'absolute',
 		height: 'fit-content',
 		width: 'fit-content',
-		bottom: 10,
-		right: '1%',
+		top: 0,
+		bottom: 2.5,
+		right: '2%',
 		margin: 'auto',
 		zIndex: 1,
-		fontSize: 16,
-		textShadow: `0 0 10px ${theme.palette.secondary.dark}`,
+		fontSize: 13,
+		textShadow: `0 0 10px ${theme.palette.secondary.light}`,
+		'&::after': {
+			content: '"kg"',
+			marginLeft: 5,
+			color: theme.palette.text.alt,
+		},
 	},
 	inventoryWeightBar: {
-		height: 6,
-		borderRadius: 0,
+		height: 15,
+		borderRadius: 5,
 	},
 	inventoryHeader: {
 		paddingLeft: 5,
-		fontWeight: 'bold',
-		fontSize: 18,
+		fontWeight: 600,
+		fontSize: 17.5,
 		userSelect: 'none',
 		'-webkit-user-select': 'none',
 	},
@@ -108,103 +121,63 @@ const useStyles = makeStyles((theme) => ({
 		userSelect: 'none',
 		'-webkit-user-select': 'none',
 	},
-	shopBtn: {
-		width: 150,
-		height: 175,
-		lineHeight: '175px',
+	useBtn: {
+		width: 130,
+		height: 130,
+		lineHeight: '130px',
 		textAlign: 'center',
-		fontSize: 36,
-		position: 'absolute',
-		top: 450,
-		bottom: 0,
-		left: 0,
-		right: 0,
-		margin: 'auto',
-		backgroundColor: `${theme.palette.secondary.light}`,
-		border: `1px solid transparent`,
-		transition:
-			'background ease-in 0.15s, border ease-in 0.15s, color ease-in 0.15s',
-		'&:hover': {
-			backgroundColor: `${theme.palette.secondary.dark}9e`,
-			borderColor: theme.palette.primary.main,
-			color: theme.palette.primary.main,
-		},
-	},
-	centerBtns: {
-		height: 'fit-content',
-		width: 250,
+		fontSize: 40,
 		position: 'absolute',
 		top: 0,
 		bottom: 0,
 		left: 0,
 		right: 0,
 		margin: 'auto',
-		padding: 12,
-		background: `#080808d6`,
+		background: `#202020`,
+		border: `1px solid transparent`,
+		transition:
+			'background ease-in 0.15s, border ease-in 0.15s, color ease-in 0.15s',
+		'&:hover': {
+			background: `#202020`,
+			borderColor: theme.palette.secondary.main,
+			color: theme.palette.primary.light,
+		},
+	},
+	loader: {
+		position: 'absolute',
+		width: 'fit-content',
+		height: 'fit-content',
+		top: 0,
+		bottom: 0,
+		right: 0,
+		left: 0,
+		margin: 'auto',
+		textAlign: 'center',
+		'& span': {
+			display: 'block',
+		},
+	},
+	buttons: {
+		position: 'absolute',
+		background: `#202020`,
+		padding: 5,
 		border: `1px solid rgba(255, 255, 255, 0.04)`,
+		height: 'fit-content',
+		left: 0,
+		right: 0,
+		bottom: 150,
+		margin: 'auto',
+		width: 'fit-content',
 		display: 'flex',
-		gap: 16,
-		flexDirection: 'column',
+		gap: 10,
 	},
-	useBtn: {
-		width: '100%',
-		height: 65,
-		lineHeight: '65px',
-		textAlign: 'center',
-		fontSize: 18,
-		backgroundColor: `${theme.palette.secondary.light}`,
-		border: `1px solid transparent`,
-		userSelect: 'none',
-		transition:
-			'background-color ease-in 0.15s, border-color ease-in 0.15s, color ease-in 0.15s',
-		'&:not(.disabled):hover': {
-			backgroundColor: `${theme.palette.secondary.light}9e`,
-			borderColor: theme.palette.primary.main,
-			color: theme.palette.primary.main,
-			cusor: 'pointer',
-		},
-		'&.disabled': {
-			color: '#494949',
-		},
-	},
-	closeBtn: {
-		width: '100%',
-		height: 65,
-		lineHeight: '65px',
-		textAlign: 'center',
-		fontSize: 18,
-		backgroundColor: `${theme.palette.secondary.light}`,
-		border: `1px solid transparent`,
-		userSelect: 'none',
-		transition:
-			'background-color ease-in 0.15s, border-color ease-in 0.15s, color ease-in 0.15s',
+	button: {
+		width: 40,
+		height: 40,
 		'&:hover': {
-			backgroundColor: `${theme.palette.secondary.light}9e`,
+			backgroundColor: `${theme.palette.secondary.dark}9e`,
 			borderColor: theme.palette.primary.main,
-			color: theme.palette.primary.main,
-			cusor: 'pointer',
-		},
-	},
-	microActions: {
-		display: 'flex',
-		gap: 16,
-	},
-	microAction: {
-		width: '100%',
-		height: 35,
-		lineHeight: '35px',
-		textAlign: 'center',
-		fontSize: 14,
-		backgroundColor: `${theme.palette.secondary.light}`,
-		border: `1px solid transparent`,
-		userSelect: 'none',
-		transition:
-			'background-color ease-in 0.15s, border-color ease-in 0.15s, color ease-in 0.15s',
-		'&:hover': {
-			backgroundColor: `${theme.palette.secondary.light}9e`,
-			borderColor: theme.palette.primary.main,
-			color: theme.palette.primary.main,
-			cusor: 'pointer',
+			color: theme.palette.primary.light,
 		},
 	},
 	helpModal: {
@@ -212,7 +185,7 @@ const useStyles = makeStyles((theme) => ({
 		top: '50%',
 		left: '50%',
 		transform: 'translate(-50%, -50%)',
-		width: 400,
+		width: 500,
 		background: theme.palette.secondary.dark,
 		boxShadow: 24,
 		padding: 10,
@@ -230,7 +203,6 @@ const useStyles = makeStyles((theme) => ({
 			borderColor: theme.palette.primary.main,
 			cursor: 'pointer',
 		},
-
 		'& svg': {
 			marginLeft: 6,
 		},
@@ -241,7 +213,7 @@ export default (props) => {
 	const classes = useStyles();
 	const dispatch = useDispatch();
 	const settings = useSelector((state) => state.app.settings);
-	const mode = useSelector((state) => state.app.mode);
+	const itemsLoaded = useSelector((state) => state.inventory.itemsLoaded);
 	const playerInventory = useSelector((state) => state.inventory.player);
 	const secondaryInventory = useSelector(
 		(state) => state.inventory.secondary,
@@ -254,11 +226,6 @@ export default (props) => {
 	const inUse = useSelector((state) => state.inventory.inUse);
 
 	const [showHelp, setShowHelp] = useState(false);
-	const [modifyingShop, setModifyingShop] = useState(null);
-
-	useEffect(() => {
-		setModifyingShop(null);
-	}, [playerInventory, secondaryInventory]);
 
 	const onToggleSound = () => {
 		Nui.send('UpdateSettings', {
@@ -299,33 +266,8 @@ export default (props) => {
 		top: 0,
 	});
 
-	const canAddToShop = () => {
-		if (Object.keys(items) == 0) return false;
-
-		return (
-			secondaryInventory.playerShop &&
-			secondaryInventory.modifyShop &&
-			!Boolean(inUse) &&
-			Boolean(hover) &&
-			Boolean(items[hover.Name]) &&
-			hoverOrigin?.owner == playerInventory.owner &&
-			(secondaryInventory?.inventory?.length ?? 50) < 50
-		);
-	};
-
-	const canShiftClickToShop = () => {
-		if (Object.keys(items) == 0) return false;
-
-		return (
-			secondaryInventory.playerShop &&
-			secondaryInventory.modifyShop &&
-			!Boolean(inUse) &&
-			(secondaryInventory?.inventory?.length ?? 50) < 50
-		);
-	};
-
 	const isUsable = () => {
-		if (Object.keys(items) == 0 || mode != 'inventory') return false;
+		if (Object.keys(items) == 0) return false;
 
 		return (
 			!Boolean(inUse) &&
@@ -352,18 +294,14 @@ export default (props) => {
 		e.preventDefault();
 		if (Object.keys(items) == 0) return;
 		if (hoverOrigin != null) return;
-		if (!Boolean(items[item.Name]) || items[item.Name]?.invalid) return;
 
 		setOffset({ left: e.clientX - 2, top: e.clientY - 4 });
 
 		if (
-			(isShop &&
-				!playerInventory.isWeaponEligble &&
-				items[item.Name]?.type == 2) ||
-			(items[item.Name]?.type == 10 &&
-				secondaryInventory.owner ==
-					`container:${item?.MetaData?.Container}`)
+			(isShop && !playerInventory.isWeaponEligble && items[item.Name]?.type == 2) ||
+			(items[item.Name]?.type == 10 && secondaryInventory.owner == `container:${item?.MetaData?.Container}`)
 		) {
+			console.log('yeetus deletus')
 			Nui.send('FrontEndSound', 'DISABLED');
 			return;
 		}
@@ -486,235 +424,132 @@ export default (props) => {
 		});
 	};
 
-	const onAddToShop = async (e) => {
-		e.preventDefault();
-
-		try {
-			Nui.send('FrontEndSound', 'SELECT');
-			let res = await (
-				await Nui.send('AddToShop', {
-					ownerFrom: playerInventory.owner,
-					invTypeFrom: playerInventory.invType,
-					slotFrom: modifyingShop.slotFrom,
-					ownerTo: secondaryInventory.owner,
-					invTypeTo: secondaryInventory.invType,
-					slotTo: modifyingShop.slotTo,
-					price: +e.target.price.value,
-					quantity: +e.target.quantity.value,
-				})
-			).json();
-
-			if (Boolean(res)) {
-				dispatch({
-					type: 'SET_INVENTORIES',
-					payload: {
-						player: {
-							inventory: res.player,
-						},
-						secondary: {
-							inventory: res.secondary,
-						},
-					},
-				});
-			} else {
-			}
-		} catch (err) {
-			console.error(err);
-		}
-
-		setModifyingShop(null);
-	};
-
-	const onClose = () => {
-		dispatch({
-			type: 'SET_CONTEXT_ITEM',
-			payload: null,
-		});
-		dispatch({
-			type: 'SET_SPLIT_ITEM',
-			payload: null,
-		});
-		closeInventory();
-	};
-
-	return (
-		<Fragment>
-			<Fade in={Boolean(playerInventory.loaded)}>
-				<div className={classes.centerBtns}>
-					<div
-						className={`${classes.useBtn}${
-							!isUsable() ? ' disabled' : ''
-						}`}
-						onMouseUp={() => {
-							if (
-								!Boolean(hover) ||
-								hover?.invType != 1 ||
-								!isUsable()
-							)
-								return;
-							useItem(hover?.owner, hover?.Slot, hover?.invType);
-							dispatch({
-								type: 'USE_ITEM_PLAYER',
-								payload: {
-									originSlot: hover?.Slot,
-								},
-							});
-							dispatch({
-								type: 'SET_HOVER',
-								payload: null,
-							});
-							dispatch({
-								type: 'SET_HOVER_ORIGIN',
-								payload: null,
-							});
-						}}
-					>
-						USE
-					</div>
-					<div className={classes.closeBtn} onClick={onClose}>
-						CLOSE
-					</div>
-					<div className={classes.microActions}>
-						<Tooltip title="Show UI Help">
-							<div
-								className={classes.microAction}
-								onClick={() => setShowHelp(true)}
-							>
-								<FontAwesomeIcon icon={['fas', 'question']} />
-							</div>
-						</Tooltip>
-
-						<Tooltip
-							title={
-								Boolean(settings.muted)
-									? 'Unmute UI Sounds'
-									: 'Mute UI Sounds'
-							}
-						>
-							<div
-								className={classes.microAction}
-								onClick={onToggleSound}
-							>
-								{Boolean(settings.muted) ? (
-									<FontAwesomeIcon
-										color="red"
-										icon={['fas', 'volume-xmark']}
-									/>
-								) : (
-									<FontAwesomeIcon
-										color="green"
-										icon={['fas', 'volume-high']}
-									/>
-								)}
-							</div>
-						</Tooltip>
-					</div>
+	if (!itemsLoaded || Object.keys(items).length == 0) {
+		return (
+			<div className={classes.loader}>
+				<CircularProgress size={36} style={{ margin: 'auto' }} />
+				<span>Loading Inventory Items</span>
+				<Alert
+					style={{ marginTop: 20 }}
+					variant="outlined"
+					severity="info"
+				>
+					If you see this for a long period of time, there may be an
+					issue. Try restarting your FiveM.
+				</Alert>
+			</div>
+		);
+	} else {
+		return (
+			<Fragment>
+				<div
+					className={classes.useBtn}
+					onMouseUp={() => {
+						if (!Boolean(hover) || hover?.invType != 1) return;
+						useItem(hover?.owner, hover?.Slot, hover?.invType);
+						dispatch({
+							type: 'USE_ITEM_PLAYER',
+							payload: {
+								originSlot: hover?.Slot,
+							},
+						});
+						dispatch({
+							type: 'SET_HOVER',
+							payload: null,
+						});
+						dispatch({
+							type: 'SET_HOVER_ORIGIN',
+							payload: null,
+						});
+					}}
+				>
+					<FontAwesomeIcon icon={['fas', 'hands']} />
 				</div>
-			</Fade>
-			<div className={classes.root} onClick={cancelDrag}>
-				<div className={classes.gridBg} onClick={cancelDrag}>
-					<div className={classes.inventoryHeader}>
-						{playerInventory.name}
-					</div>
-					<div className={classes.container}>
-						<div className={classes.inventoryWeight}>
-							<div className={classes.weightText}>
-								{`${playerWeight.toFixed(
-									2,
-								)} / ${playerInventory.capacity.toFixed(2)}`}
-							</div>
-							<LinearProgress
-								className={classes.inventoryWeightBar}
-								color="primary"
-								variant="determinate"
-								value={Math.floor(
-									(playerWeight / playerInventory.capacity) *
-										100,
-								)}
-							/>
+				<div className={classes.root} onClick={cancelDrag}>
+					<div className={classes.gridBg} onClick={cancelDrag}>
+						<div className={classes.inventoryHeader}>
+							{playerInventory.name}
 						</div>
-						<div className={classes.inventoryGrid}>
-							{playerInventory.loaded &&
-								[...Array(playerInventory.size).keys()].map(
-									(value) => {
-										let slot =
-											playerInventory.inventory.filter(
-												(s) =>
-													Boolean(s) &&
-													s.Slot == value + 1,
-											)
-												? playerInventory.inventory.filter(
-														(s) =>
-															Boolean(s) &&
-															s.Slot == value + 1,
-												  )[0]
-												: {};
-										return (
-											<Slot
-												key={value + 1}
-												onUse={useItem}
-												canAddToShop={
-													canShiftClickToShop
-												}
-												onAddToShop={setModifyingShop}
-												slot={value + 1}
-												data={slot}
-												owner={playerInventory.owner}
-												invType={
-													playerInventory.invType
-												}
-												shop={false}
-												free={false}
-												hotkeys={true}
-												playerCapacity={
-													playerInventory.capacity
-												}
-												playerWeight={playerWeight}
-												secondaryCapacity={
-													Boolean(
-														secondaryInventory.capacityOverride,
-													)
-														? secondaryInventory.capacityOverride
-														: secondaryInventory.capacity
-												}
-												secondaryWeight={
-													secondaryWeight
-												}
-												onContextMenu={(e) => {
-													if (
+						<div className={classes.container}>
+							<div className={classes.inventoryWeight}>
+								<div className={classes.weightText}>
+									{`${playerWeight.toFixed(
+										2,
+									)} / ${playerInventory.capacity.toFixed(
+										2,
+									)}`}
+								</div>
+								<LinearProgress
+									className={classes.inventoryWeightBar}
+									color="inherit"
+									variant="determinate"
+									value={Math.floor(
+										(playerWeight /
+											playerInventory.capacity) *
+											100,
+									)}
+								/>
+							</div>
+							<div className={classes.inventoryGrid}>
+								{playerInventory.loaded &&
+									[...Array(playerInventory.size).keys()].map(
+										(value) => {
+											let slot =
+												playerInventory.inventory.filter(
+													(s) =>
+														Boolean(s) &&
+														s.Slot == value + 1,
+												)
+													? playerInventory.inventory.filter(
+															(s) =>
+																Boolean(s) &&
+																s.Slot ==
+																	value + 1,
+													  )[0]
+													: {};
+											return (
+												<Slot
+													key={value + 1}
+													onUse={useItem}
+													slot={value + 1}
+													data={slot}
+													owner={
+														playerInventory.owner
+													}
+													invType={
+														playerInventory.invType
+													}
+													shop={false}
+													free={false}
+													hotkeys={true}
+													onContextMenu={(e) => {
+														if (
+															playerInventory
+																.disabled[
+																value + 1
+															]
+														)
+															return;
+														onRightClick(
+															e,
+															playerInventory.owner,
+															playerInventory.invType,
+															false,
+															false,
+															slot,
+														);
+													}}
+													locked={
 														playerInventory
 															.disabled[value + 1]
-													)
-														return;
-													onRightClick(
-														e,
-														playerInventory.owner,
-														playerInventory.invType,
-														false,
-														false,
-														slot,
-													);
-												}}
-												locked={
-													playerInventory.disabled[
-														value + 1
-													]
-												}
-											/>
-										);
-									},
-								)}
+													}
+												/>
+											);
+										},
+									)}
+							</div>
 						</div>
 					</div>
-				</div>
-				{mode == 'crafting' ? (
-					<div className={classes.gridBg}>
-						<div className={classes.inventoryHeader}>Crafting</div>
-						<div className={classes.container}>
-							<Crafting />
-						</div>
-					</div>
-				) : (
 					<Fade in={showSecondary}>
 						<div className={classes.gridBg}>
 							<div className={classes.inventoryHeader}>
@@ -722,38 +557,33 @@ export default (props) => {
 							</div>
 							<div className={classes.container}>
 								<div className={classes.inventoryWeight}>
-									{!secondaryInventory.shop &&
-										!secondaryInventory.playerShop && (
-											<>
-												<div
-													className={
-														classes.weightText
-													}
-												>
-													{`${secondaryWeight.toFixed(
-														2,
-													)} / ${secondaryInventory.capacity.toFixed(
-														2,
-													)}`}
-												</div>
-												<LinearProgress
-													className={
-														classes.inventoryWeightBar
-													}
-													color="primary"
-													variant="determinate"
-													value={
-														secondaryInventory.shop
-															? 0
-															: Math.floor(
-																	(secondaryWeight /
-																		secondaryInventory.capacity) *
-																		100,
-															  )
-													}
-												/>
-											</>
-										)}
+									{!secondaryInventory.shop && (
+										<>
+											<div className={classes.weightText}>
+												{`${secondaryWeight.toFixed(
+													2,
+												)} / ${secondaryInventory.capacity.toFixed(
+													2,
+												)}`}
+											</div>
+											<LinearProgress
+												className={
+													classes.inventoryWeightBar
+												}
+												color="inherit"
+												variant="determinate"
+												value={
+													secondaryInventory.shop
+														? 0
+														: Math.floor(
+																(secondaryWeight /
+																	secondaryInventory.capacity) *
+																	100,
+														  )
+												}
+											/>
+										</>
+									)}
 								</div>
 								<div className={classes.inventoryGrid}>
 									{secondaryInventory.loaded &&
@@ -777,11 +607,6 @@ export default (props) => {
 													: {};
 											return (
 												<Slot
-													secondary
-													canAddToShop={canAddToShop}
-													onAddToShop={
-														setModifyingShop
-													}
 													slot={value + 1}
 													key={value + 1}
 													data={slot}
@@ -797,9 +622,6 @@ export default (props) => {
 													free={
 														secondaryInventory.free
 													}
-													playerShop={
-														secondaryInventory.playerShop
-													}
 													vehClass={
 														secondaryInventory.class
 													}
@@ -809,24 +631,10 @@ export default (props) => {
 													slotOverride={
 														secondaryInventory.slotOverride
 													}
-													capacityOverride={
+													capacityOverride = {
 														secondaryInventory.capacityOverride
 													}
 													hotkeys={false}
-													playerCapacity={
-														playerInventory.capacity
-													}
-													playerWeight={playerWeight}
-													secondaryCapacity={
-														Boolean(
-															secondaryInventory.capacityOverride,
-														)
-															? secondaryInventory.capacityOverride
-															: secondaryInventory.capacity
-													}
-													secondaryWeight={
-														secondaryWeight
-													}
 													onContextMenu={(e) => {
 														if (
 															secondaryInventory
@@ -867,127 +675,106 @@ export default (props) => {
 										icon={[
 											'fas',
 											secondaryInventory.action.icon ||
-												'up-right-from-square',
+												'right-from-line',
 										]}
 									/>
 								</Button>
 							)}
 						</div>
 					</Fade>
-				)}
-			</div>
+				</div>
 
-			<Modal open={showHelp} onClose={() => setShowHelp(false)}>
-				<Box className={classes.helpModal}>
-					<Typography
-						id="modal-modal-title"
-						variant="h6"
-						component="h2"
+				<div className={classes.buttons}>
+					<Tooltip title="Show UI Help">
+						<IconButton
+							className={classes.button}
+							onClick={() => setShowHelp(true)}
+						>
+							<FontAwesomeIcon icon={['fas', 'question']} />
+						</IconButton>
+					</Tooltip>
+
+					<Tooltip
+						title={
+							Boolean(settings.muted)
+								? 'Unmute UI Sounds'
+								: 'Mute UI Sounds'
+						}
 					>
-						Inventory Keys
-					</Typography>
-					<Typography id="modal-modal-description" sx={{ mt: 2 }}>
-						Our inventory makes use of some hotkeys to facilitate
-						quick operations. These keys can be found below;
-					</Typography>
-					<ul>
-						<li>
-							<b>Shift Left Click: </b>Quick Transfer. Move Stack
-							To Other Inventory (If Possible)
-						</li>
-						<li>
-							<b>Shift Right Click: </b>Split Stack. Brings Up
-							Prompt To Split Stack (If Possible)
-						</li>
-						<li>
-							<b>Control Left Click: </b>Half Stack. Starts
-							Dragging Half Of The Selected Stack (If Possible)
-						</li>
-						<li>
-							<b>Control Right Click: </b>Single Item. Starts
-							Dragging A Single Item Of The Selected Stack
-						</li>
-						<li>
-							<b>Middle Mouse Button: </b>Use Item. Uses Selected
-							Item (If Possible)
-						</li>
-					</ul>
-				</Box>
-			</Modal>
+						<IconButton
+							className={classes.button}
+							onClick={onToggleSound}
+						>
+							{Boolean(settings.muted) ? (
+								<FontAwesomeIcon
+									color="red"
+									icon={['fas', 'volume-xmark']}
+								/>
+							) : (
+								<FontAwesomeIcon
+									color="green"
+									icon={['fas', 'volume-high']}
+								/>
+							)}
+						</IconButton>
+					</Tooltip>
+				</div>
 
-			{showSplit != null ? (
-				<Menu
-					keepMounted
-					onClose={closeSplitContext}
-					onContextMenu={closeSplitContext}
-					open={!!showSplit}
-					anchorReference="anchorPosition"
-					anchorPosition={offset}
-					TransitionComponent={Fade}
-				>
-					<MenuItem disabled>Split Stack</MenuItem>
-					<Split data={showSplit} />
-				</Menu>
-			) : null}
+				<Modal open={showHelp} onClose={() => setShowHelp(false)}>
+					<Box className={classes.helpModal}>
+						<Typography
+							id="modal-modal-title"
+							variant="h6"
+							component="h2"
+						>
+							Inventory Keys
+						</Typography>
+						<Typography id="modal-modal-description" sx={{ mt: 2 }}>
+							Our inventory makes use of some hotkeys to
+							facilitate quick operations. These keys can be found
+							below;
+						</Typography>
+						<ul>
+							<li>
+								<b>Shift Left Click: </b>Quick Transfer. Move
+								Stack To Other Inventory (If Possible)
+							</li>
+							<li>
+								<b>Shift Right Click: </b>Split Stack. Brings Up
+								Prompt To Split Stack (If Possible)
+							</li>
+							<li>
+								<b>Control Left Click: </b>Half Stack. Starts
+								Dragging Half Of The Selected Stack (If
+								Possible)
+							</li>
+							<li>
+								<b>Control Right Click: </b>Single Item. Starts
+								Dragging A Single Item Of The Selected Stack
+							</li>
+							<li>
+								<b>Middle Mouse Button: </b>Use Item. Uses
+								Selected Item (If Possible)
+							</li>
+						</ul>
+					</Box>
+				</Modal>
 
-			{Boolean(modifyingShop) && (
-				<Dialog
-					fullWidth
-					maxWidth="sm"
-					open={Boolean(modifyingShop)}
-					onClose={() => setModifyingShop(null)}
-				>
-					<form onSubmit={onAddToShop}>
-						<DialogTitle>
-							Add {items[modifyingShop.Name].label} To Shop
-						</DialogTitle>
-						<DialogContent>
-							<Grid container spacing={2} style={{ padding: 8 }}>
-								<Grid item xs={12}>
-									<TextField
-										fullWidth
-										name="quantity"
-										label="Quantity"
-										type="number"
-										inputProps={{
-											min: 1,
-											max: modifyingShop.Count,
-										}}
-										disabled={
-											!Boolean(
-												items[modifyingShop.Name]
-													.isStackable,
-											)
-										}
-										defaultValue={modifyingShop.Count}
-									/>
-								</Grid>
-								<Grid item xs={12}>
-									<TextField
-										fullWidth
-										name="price"
-										label="Price Per Unit"
-										type="number"
-										inputProps={{
-											min: 0,
-											max: 4000000000,
-										}}
-										defaultValue={
-											items[modifyingShop.Name].price
-										}
-									/>
-								</Grid>
-							</Grid>
-						</DialogContent>
-						<DialogActions>
-							<Button onClick={() => setModifyingShop(null)}>
-								Cancel
-							</Button>
-							<Button type="submit">Add</Button>
-						</DialogActions>
-					</form>
-				</Dialog>
-			)}
-		</Fragment>
-	);
+				{showSplit != null ? (
+					<Menu
+						keepMounted
+						onClose={closeSplitContext}
+						onContextMenu={closeSplitContext}
+						open={!!showSplit}
+						anchorReference="anchorPosition"
+						anchorPosition={offset}
+						TransitionComponent={Fade}
+					>
+						<MenuItem disabled>Split Stack</MenuItem>
+						<Split data={showSplit} />
+					</Menu>
+				) : null}
+			</Fragment>
+		);
+	}
 };

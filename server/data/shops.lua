@@ -317,10 +317,10 @@ _shops = {
 			scale = 0.4,
 		},
 		coords = {
-			x = 292.051,
-			y = -1272.526,
-			z = 28.4548,
-			h = 1.5,
+			x = 291.832,
+			y = -1272.603,
+			z = 28.518,
+			h = 0.206,
 		},
 	},
 
@@ -523,7 +523,7 @@ _shops = {
 			h = 136.413,
 		},
 	},
-	{ -- Palomino Fwy
+	{
 		shopId = 29,
 		name = "Ammunation",
 		entityId = 12,
@@ -537,7 +537,7 @@ _shops = {
 		coords = {
 			x = 2564.758,
 			y = 298.400,
-			z = 106.835,
+			z = 106.735,
 			h = 270.924,
 		},
 	},
@@ -659,14 +659,14 @@ _shops = {
 		icon = "truck-medical",
 		npc = "s_m_m_doctor_01",
 		coords = {
-			x = 1135.866,
-			y = -1542.794,
-			z = 34.033,
-			h = 182.305,
+			x = -493.643,
+			y = -342.367,
+			z = 41.321,
+			h = 347.988,
 		},
 	},
 	{
-		shopId = 37, -- DOC Armory
+		shopId = 37,
 		name = "Medical Supplies",
 		entityId = 26,
 		icon = "truck-medical",
@@ -685,10 +685,10 @@ _shops = {
 		icon = "truck-medical",
 		npc = "s_m_m_doctor_01",
 		coords = {
-			x = 1141.817,
-			y = -1529.348,
-			z = 34.033,
-			h = 91.052,
+			x = -491.035,
+			y = -342.791,
+			z = 41.321,
+			h = 352.645,
 		},
 	},
 	{
@@ -749,7 +749,7 @@ _shops = {
 		shopId = 48,
 		name = "Food Wholesaler",
 		entityId = 61,
-		icon = "user-chef",
+		icon = "utensils",
 		npc = "s_m_m_dockwork_01",
 		blip = {
 			sprite = 90,
@@ -788,10 +788,10 @@ _shops = {
 		icon = "radio",
 		npc = "u_m_m_partytarget",
 		coords = {
-			x = 1134.168,
-			y = -468.023,
-			z = 65.486,
-			h = 165.675,
+            x = 392.410,
+            y = -832.409,
+            z = 28.292,
+            h = 227.050,
 		},
 	},
 	{
@@ -806,36 +806,5 @@ _shops = {
 			z = 139.387,
 			h = 133.093,
 		},
-	},
-	{
-		shopId = 52,
-		id = "vending-hotdog",
-		name = "Hot Dog Cart",
-		entityId = 188,
-	},
-	{
-		shopId = 53,
-		id = "vending-burger",
-		name = "Burger Cart",
-		entityId = 189,
-	},
-	{
-		shopId = 54,
-		name = "Pharmacy",
-		entityId = 11,
-		icon = "shop",
-		npc = "mp_m_shopkeep_01",
-		coords = {
-			x = 1137.331,
-			y = -1558.216,
-			z = 34.033,
-			h = 270.740,
-		},
-	},
-	{
-		shopId = 55,
-		id = "taco-shop-self",
-		name = "Taco Shop",
-		entityId = 996,
 	},
 }
